@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Premium Transport Business Theme - Light Mode */
+    --background: 220 20% 97%;
+    --foreground: 220 30% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 10%;
+
+    /* Navy Blue Primary with Gold Accents */
+    --primary: 220 70% 28%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 92%;
+    --secondary-foreground: 220 30% 10%;
+
+    --muted: 220 15% 95%;
+    --muted-foreground: 220 15% 45%;
+
+    /* Gold Accent Color */
+    --accent: 45 85% 52%;
+    --accent-foreground: 220 30% 10%;
+
+    /* Success Green for Profits */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    /* Red for Losses */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warning Orange */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 220 20% 88%;
+    --input: 220 20% 92%;
+    --ring: 220 70% 28%;
+
+    --radius: 0.5rem;
+    
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    --shadow-sm: 0 1px 2px 0 hsl(220 30% 10% / 0.05);
+    --shadow: 0 4px 6px -1px hsl(220 30% 10% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(220 30% 10% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(220 30% 10% / 0.15);
+
+    --sidebar-background: 220 25% 98%;
+    --sidebar-foreground: 220 30% 15%;
+    --sidebar-primary: 220 70% 28%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 94%;
+    --sidebar-accent-foreground: 220 30% 10%;
+    --sidebar-border: 220 20% 90%;
+    --sidebar-ring: 220 70% 28%;
+  }
+
+  .dark {
+    /* Premium Transport Business Theme - Dark Mode */
+    --background: 220 30% 8%;
+    --foreground: 220 15% 95%;
+
+    --card: 220 28% 12%;
+    --card-foreground: 220 15% 95%;
+
+    --popover: 220 28% 12%;
+    --popover-foreground: 220 15% 95%;
+
+    /* Lighter Navy Blue for Dark Mode */
+    --primary: 220 60% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 25% 16%;
+    --secondary-foreground: 220 15% 95%;
+
+    --muted: 220 25% 18%;
+    --muted-foreground: 220 15% 60%;
+
+    /* Gold Accent for Dark Mode */
+    --accent: 45 90% 55%;
+    --accent-foreground: 220 30% 10%;
+
+    /* Success Green */
+    --success: 142 76% 42%;
+    --success-foreground: 0 0% 100%;
+
+    /* Red for Losses */
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warning Orange */
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 220 25% 22%;
+    --input: 220 25% 20%;
+    --ring: 220 60% 45%;
+
+    --sidebar-background: 220 30% 10%;
+    --sidebar-foreground: 220 15% 90%;
+    --sidebar-primary: 220 60% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 28% 16%;
+    --sidebar-accent-foreground: 220 15% 95%;
+    --sidebar-border: 220 25% 20%;
+    --sidebar-ring: 220 60% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
+  
+  /* Hide scrollbars globally but keep functionality */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Mobile App Styles */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
+  /* Page transition wrapper */
+  .page-transition {
+    animation: page-enter 0.35s ease-out forwards;
+  }
+  
+  @keyframes page-enter {
+    0% {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Touch feedback */
+  .touch-feedback {
+    @apply transition-all duration-150 active:scale-[0.97] active:opacity-80;
+  }
+  
+  /* Card hover/tap effect */
+  .card-interactive {
+    @apply transition-all duration-200 hover:shadow-lg active:scale-[0.98];
+  }
+  
+  /* Smooth button press */
+  .btn-press {
+    @apply transition-transform duration-100 active:scale-95;
+  }
+}
