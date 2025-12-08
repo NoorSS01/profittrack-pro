@@ -3,10 +3,10 @@
  * Handles communication with Google Gemini API
  */
 
-// Using gemini-1.5-flash as it's stable and widely available
-// You can change to 'gemini-2.0-flash-exp' or 'gemini-1.5-pro' if needed
-const GEMINI_MODEL = 'gemini-1.5-flash';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// Using gemini-2.0-flash - the current stable model
+// API v1beta is required for Gemini models
+const GEMINI_MODEL = 'gemini-2.0-flash';
+const API_VERSION = 'v1beta';
 
 export interface GeminiMessage {
   role: 'user' | 'model';
@@ -14,63 +14,18 @@ export interface GeminiMessage {
 }
 
 export interface GeminiResponse {
-  candidates: Array<{
+  candidates?: Array<{
     content: {
       parts: Array<{ text: string }>;
       role: string;
     };
     finishReason: string;
   }>;
-  usageMetadata?: {
-    promptTokenCount: number;
-    candidatesTokenCount: number;
-    totalTokenCount: number;
-  };
-}
-
-export interface GeminiError {
-  error: {
+  error?: {
     code: number;
     message: string;
     status: string;
   };
-}
-
-// Rate limiting state - more generous limits
-const rateLimitState = {
-  requests: [] as number[],
-  maxRequests: 30, // 30 requests per minute (Gemini free tier allows 60/min)
-  windowMs: 60000, // 1 minute
-};
-
-/**
- * Check if rate limit is exceeded
- */
-function isRateLimited(): boolean {
-  const now = Date.now();
-  // Remove requests older than the window
-  rateLimitState.requests = rateLimitState.requests.filter(
-    (timestamp) => now - timestamp < rateLimitState.windowMs
-  );
-  return rateLimitState.requests.length >= rateLimitState.maxRequests;
-}
-
-/**
- * Record a new request for rate limiting
- */
-function recordRequest(): void {
-  rateLimitState.requests.push(Date.now());
-}
-
-/**
- * Get remaining requests in current window
- */
-export function getRemainingRequests(): number {
-  const now = Date.now();
-  rateLimitState.requests = rateLimitState.requests.filter(
-    (timestamp) => now - timestamp < rateLimitState.windowMs
-  );
-  return Math.max(0, rateLimitState.maxRequests - rateLimitState.requests.length);
 }
 
 /**
@@ -83,38 +38,38 @@ export async function generateResponse(
 ): Promise<string> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-  if (!apiKey) {
+  // Check if API key exists and is valid
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'your-gemini-api-key' || apiKey.length < 20) {
+    console.error('Gemini API key is missing or invalid');
     throw new Error('GEMINI_API_KEY_MISSING');
   }
 
-  if (isRateLimited()) {
-    throw new Error('RATE_LIMITED');
-  }
-
-  // Build the contents array with conversation history
+  // Build the contents array
   const contents: GeminiMessage[] = [
-    // System instruction as first user message
     {
       role: 'user',
       parts: [{ text: systemPrompt }],
     },
     {
       role: 'model',
-      parts: [{ text: 'I understand. I will analyze your transport business data and provide personalized insights based on your actual statistics.' }],
+      parts: [{ text: 'I understand. I will analyze your transport business data and provide personalized insights.' }],
     },
-    // Add conversation history
     ...conversationHistory,
-    // Add current user message
     {
       role: 'user',
       parts: [{ text: userMessage }],
     },
   ];
 
-  recordRequest();
+  // Use the v1beta API endpoint (required for gemini-1.5-flash)
+  const apiUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+  console.log('Calling Gemini API...');
+  console.log('Model:', GEMINI_MODEL);
+  console.log('API Key (first 10 chars):', apiKey.substring(0, 10) + '...');
 
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -127,60 +82,60 @@ export async function generateResponse(
           topP: 0.95,
           maxOutputTokens: 1024,
         },
-        safetySettings: [
-          {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-          },
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-          },
-          {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-          },
-          {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-          },
-        ],
       }),
     });
 
-    if (!response.ok) {
-      let errorData: GeminiError | null = null;
-      try {
-        errorData = (await response.json()) as GeminiError;
-      } catch {
-        // Response might not be JSON
-      }
+    console.log('Response status:', response.status);
+
+    // Try to parse response
+    let data: GeminiResponse;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      console.error('Failed to parse response:', parseError);
+      throw new Error('API_ERROR: Failed to parse response');
+    }
+
+    console.log('Response data:', JSON.stringify(data).substring(0, 200));
+
+    // Check for error in response body
+    if (data.error) {
+      console.error('Gemini API Error:', data.error);
       
-      console.error('Gemini API Error:', response.status, errorData);
+      const errorMessage = (data.error.message || '').toLowerCase();
+      const errorCode = data.error.code;
       
-      if (response.status === 429) {
+      if (errorCode === 429 || errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
         throw new Error('API_RATE_LIMITED');
       }
-      if (response.status === 403) {
+      if (errorCode === 403 || errorMessage.includes('permission') || errorMessage.includes('denied')) {
         throw new Error('API_QUOTA_EXCEEDED');
       }
-      if (response.status === 400) {
-        // Check if it's a model not found error
-        if (errorData?.error?.message?.includes('not found')) {
-          throw new Error('MODEL_NOT_FOUND');
-        }
-        throw new Error('API_INVALID_REQUEST');
+      if (errorMessage.includes('api key') || errorMessage.includes('invalid key')) {
+        throw new Error('API_KEY_INVALID');
       }
-      if (response.status === 404) {
+      if (errorCode === 404 || errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
         throw new Error('MODEL_NOT_FOUND');
       }
       
-      throw new Error(`API_ERROR: ${errorData?.error?.message || `HTTP ${response.status}`}`);
+      throw new Error(`API_ERROR: ${data.error.message}`);
     }
 
-    const data = (await response.json()) as GeminiResponse;
+    // Check HTTP status for non-JSON errors
+    if (!response.ok) {
+      console.error('HTTP Error:', response.status, response.statusText);
+      
+      if (response.status === 429) throw new Error('API_RATE_LIMITED');
+      if (response.status === 403) throw new Error('API_QUOTA_EXCEEDED');
+      if (response.status === 404) throw new Error('MODEL_NOT_FOUND');
+      if (response.status === 400) throw new Error('API_INVALID_REQUEST');
+      
+      throw new Error(`API_ERROR: HTTP ${response.status}`);
+    }
 
+    // Check for valid response
     if (!data.candidates || data.candidates.length === 0) {
+      console.error('No candidates in response');
       throw new Error('NO_RESPONSE');
     }
 
@@ -190,12 +145,18 @@ export async function generateResponse(
       throw new Error('SAFETY_BLOCKED');
     }
 
-    if (!candidate.content?.parts?.[0]?.text) {
+    const text = candidate.content?.parts?.[0]?.text;
+    if (!text) {
+      console.error('Empty text in response');
       throw new Error('EMPTY_RESPONSE');
     }
 
-    return candidate.content.parts[0].text;
+    console.log('Gemini API Success! Response length:', text.length);
+    return text;
+
   } catch (error) {
+    console.error('Gemini API call failed:', error);
+    
     if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new Error('NETWORK_ERROR');
     }
@@ -207,37 +168,35 @@ export async function generateResponse(
  * Get user-friendly error message
  */
 export function getErrorMessage(error: Error): string {
-  switch (error.message) {
-    case 'GEMINI_API_KEY_MISSING':
-      return 'AI features are not configured. Please add your Gemini API key in settings.';
-    case 'RATE_LIMITED':
-      return 'Too many requests. Please wait a moment before trying again.';
-    case 'API_RATE_LIMITED':
-      return 'API rate limit reached. Please wait a minute and try again.';
-    case 'API_QUOTA_EXCEEDED':
-      return 'AI quota exceeded for today. Please try again tomorrow or check your API key.';
-    case 'API_INVALID_REQUEST':
-      return 'Invalid request. Please try rephrasing your question.';
-    case 'MODEL_NOT_FOUND':
-      return 'AI model not available. Please contact support.';
-    case 'NO_RESPONSE':
-    case 'EMPTY_RESPONSE':
-      return 'Unable to generate a response. Please try again.';
-    case 'SAFETY_BLOCKED':
-      return 'Your request was blocked for safety reasons. Please try a different question.';
-    case 'NETWORK_ERROR':
-      return 'Connection error. Please check your internet and try again.';
-    default:
-      if (error.message.startsWith('API_ERROR:')) {
-        return `AI service error: ${error.message.replace('API_ERROR: ', '')}`;
-      }
-      return 'Something went wrong. Please try again.';
+  const messages: Record<string, string> = {
+    'GEMINI_API_KEY_MISSING': 'AI features are not configured. Please add your Gemini API key.',
+    'API_KEY_INVALID': 'Invalid API key. Please check your Gemini API key is correct.',
+    'API_RATE_LIMITED': 'API rate limit reached. Please wait a minute and try again.',
+    'API_QUOTA_EXCEEDED': 'AI quota exceeded. Please check your Google Cloud billing or try again tomorrow.',
+    'API_INVALID_REQUEST': 'Invalid request. Please try rephrasing your question.',
+    'MODEL_NOT_FOUND': 'AI model temporarily unavailable. Please try again in a moment.',
+    'NO_RESPONSE': 'Unable to generate a response. Please try again.',
+    'EMPTY_RESPONSE': 'Received empty response. Please try again.',
+    'SAFETY_BLOCKED': 'Your request was blocked for safety reasons. Please try a different question.',
+    'NETWORK_ERROR': 'Connection error. Please check your internet and try again.',
+  };
+
+  if (messages[error.message]) {
+    return messages[error.message];
   }
+
+  if (error.message.startsWith('API_ERROR:')) {
+    return `AI service error: ${error.message.replace('API_ERROR: ', '')}`;
+  }
+
+  return 'Something went wrong. Please try again.';
 }
 
-/**
- * Reset rate limit state (useful for testing)
- */
+// Dummy function for backward compatibility
+export function getRemainingRequests(): number {
+  return 100; // Always return high number - let Google handle rate limiting
+}
+
 export function resetRateLimit(): void {
-  rateLimitState.requests = [];
+  // No-op - we removed client-side rate limiting
 }

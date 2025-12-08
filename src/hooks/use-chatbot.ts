@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { generateResponse, getErrorMessage, getRemainingRequests } from '@/services/gemini';
+import { generateResponse, getErrorMessage } from '@/services/gemini';
 import { getUserContext, parseTimePeriod } from '@/services/dataAggregator';
 import { buildSystemPrompt, buildConversationHistory, getSuggestedQuestions, filterPII } from '@/services/promptBuilder';
 import type { Message } from '@/components/chat/MessageList';
@@ -82,13 +82,6 @@ export function useChatbot() {
 
   const sendMessage = useCallback(async (content: string) => {
     if (!user || isLoading) return;
-
-    // Check rate limit
-    const remaining = getRemainingRequests();
-    if (remaining <= 0) {
-      setError('Too many requests. Please wait a moment before trying again.');
-      return;
-    }
 
     setError(null);
     setIsLoading(true);
