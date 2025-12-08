@@ -156,14 +156,19 @@
     - Show appropriate error message
     - _Requirements: 6.2_
 
+
+
+
   - [ ]* 6.4 Write property test for message persistence
     - **Property 4: Message persistence round-trip**
     - **Validates: Requirements 4.1, 6.4**
+
 
 - [ ] 7. Integrate Chat into App
   - [ ] 7.1 Create ChatProvider context
     - Create `src/contexts/ChatContext.tsx`
     - Provide chat state and functions to entire app
+
     - Manage open/closed state of chat panel
     - _Requirements: 5.1, 5.2, 5.3_
   - [ ] 7.2 Add ChatButton and ChatPanel to Layout
