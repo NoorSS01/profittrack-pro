@@ -1,9 +1,12 @@
 /**
  * Gemini AI Service
- * Handles communication with Google Gemini 2.0 Flash Lite API
+ * Handles communication with Google Gemini API
  */
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+// Using gemini-1.5-flash as it's stable and widely available
+// You can change to 'gemini-2.0-flash-exp' or 'gemini-1.5-pro' if needed
+const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 export interface GeminiMessage {
   role: 'user' | 'model';
@@ -33,10 +36,10 @@ export interface GeminiError {
   };
 }
 
-// Rate limiting state
+// Rate limiting state - more generous limits
 const rateLimitState = {
   requests: [] as number[],
-  maxRequests: 10,
+  maxRequests: 30, // 30 requests per minute (Gemini free tier allows 60/min)
   windowMs: 60000, // 1 minute
 };
 
@@ -146,7 +149,14 @@ export async function generateResponse(
     });
 
     if (!response.ok) {
-      const errorData = (await response.json()) as GeminiError;
+      let errorData: GeminiError | null = null;
+      try {
+        errorData = (await response.json()) as GeminiError;
+      } catch {
+        // Response might not be JSON
+      }
+      
+      console.error('Gemini API Error:', response.status, errorData);
       
       if (response.status === 429) {
         throw new Error('API_RATE_LIMITED');
@@ -155,10 +165,17 @@ export async function generateResponse(
         throw new Error('API_QUOTA_EXCEEDED');
       }
       if (response.status === 400) {
+        // Check if it's a model not found error
+        if (errorData?.error?.message?.includes('not found')) {
+          throw new Error('MODEL_NOT_FOUND');
+        }
         throw new Error('API_INVALID_REQUEST');
       }
+      if (response.status === 404) {
+        throw new Error('MODEL_NOT_FOUND');
+      }
       
-      throw new Error(`API_ERROR: ${errorData.error?.message || 'Unknown error'}`);
+      throw new Error(`API_ERROR: ${errorData?.error?.message || `HTTP ${response.status}`}`);
     }
 
     const data = (await response.json()) as GeminiResponse;
@@ -198,9 +215,11 @@ export function getErrorMessage(error: Error): string {
     case 'API_RATE_LIMITED':
       return 'API rate limit reached. Please wait a minute and try again.';
     case 'API_QUOTA_EXCEEDED':
-      return 'AI quota exceeded for today. Please try again tomorrow.';
+      return 'AI quota exceeded for today. Please try again tomorrow or check your API key.';
     case 'API_INVALID_REQUEST':
       return 'Invalid request. Please try rephrasing your question.';
+    case 'MODEL_NOT_FOUND':
+      return 'AI model not available. Please contact support.';
     case 'NO_RESPONSE':
     case 'EMPTY_RESPONSE':
       return 'Unable to generate a response. Please try again.';
@@ -210,8 +229,15 @@ export function getErrorMessage(error: Error): string {
       return 'Connection error. Please check your internet and try again.';
     default:
       if (error.message.startsWith('API_ERROR:')) {
-        return 'An error occurred with the AI service. Please try again.';
+        return `AI service error: ${error.message.replace('API_ERROR: ', '')}`;
       }
       return 'Something went wrong. Please try again.';
   }
+}
+
+/**
+ * Reset rate limit state (useful for testing)
+ */
+export function resetRateLimit(): void {
+  rateLimitState.requests = [];
 }
