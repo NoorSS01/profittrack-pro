@@ -45,8 +45,8 @@ export const VehiclePerformanceCard = ({
             <p className="text-lg md:text-xl font-bold text-primary">{formatCurrency(earnings)}</p>
           </div>
           <div className={`p-2 md:p-3 rounded-lg ${profit >= 0 ? 'bg-success/5' : 'bg-destructive/5'}`}>
-            <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Profit</p>
-            <p className={`text-lg md:text-xl font-bold ${profitColor}`}>{formatCurrency(profit)}</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">{profit >= 0 ? 'Profit' : 'Loss'}</p>
+            <p className={`text-lg md:text-xl font-bold ${profitColor}`}>{formatCurrency(Math.abs(profit))}</p>
           </div>
           <div className="p-2 md:p-3 rounded-lg bg-accent/5">
             <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Fuel Used</p>

@@ -4,7 +4,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DollarSign, TrendingUp, TrendingDown, Gauge, Calendar, Truck } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart } from "recharts";
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { VehiclePerformanceCard } from "@/components/dashboard/VehiclePerformanceCard";
@@ -338,10 +338,10 @@ const Dashboard = () => {
       <div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <StatCard
-            title="Profit"
-            value={formatCurrency(periodStats.profit)}
-            icon={TrendingUp}
-            variant="success"
+            title={periodStats.profit >= 0 ? "Profit" : "Loss"}
+            value={formatCurrency(Math.abs(periodStats.profit))}
+            icon={periodStats.profit >= 0 ? TrendingUp : TrendingDown}
+            variant={periodStats.profit >= 0 ? "success" : "destructive"}
             delay={0}
           />
           <StatCard
@@ -369,62 +369,124 @@ const Dashboard = () => {
       </div>
 
       {/* Trend Chart - Hidden for 1 day view */}
-      {timePeriod !== '1day' && (
-        <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
-          <CardHeader className="pb-2 md:pb-4">
-            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-              <Calendar className="h-5 w-5" />
-              {getPeriodLabel()} Trend
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <ResponsiveContainer width="100%" height={220} className="md:h-[300px]">
-              <LineChart 
-                data={chartData}
-                margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  axisLine={{ stroke: 'hsl(var(--border))' }}
-                  tickLine={{ stroke: 'hsl(var(--border))' }}
-                />
-                <YAxis 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  axisLine={{ stroke: 'hsl(var(--border))' }}
-                  tickLine={{ stroke: 'hsl(var(--border))' }}
-                  width={50}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                  }}
-                  labelStyle={{ 
-                    color: 'hsl(var(--foreground))',
-                    fontWeight: 600,
-                    marginBottom: '8px'
-                  }}
-                  formatter={(value: number) => `₹${value.toFixed(2)}`}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="profit" 
-                  stroke="#22c55e"
-                  strokeWidth={2.5}
-                  dot={{ fill: '#22c55e', r: 4, strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 6, strokeWidth: 2 }}
-                  name="Profit"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+      {timePeriod !== '1day' && (() => {
+        // Calculate gradient stop position based on data range
+        const profits = chartData.map(d => d.profit);
+        const maxProfit = Math.max(...profits, 0);
+        const minProfit = Math.min(...profits, 0);
+        const range = maxProfit - minProfit;
+        // Calculate where zero line falls in the gradient (0% = top, 100% = bottom)
+        const zeroPosition = range > 0 ? (maxProfit / range) * 100 : 50;
+        
+        return (
+          <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
+            <CardHeader className="pb-2 md:pb-4">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                <Calendar className="h-5 w-5" />
+                {getPeriodLabel()} Trend
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <ResponsiveContainer width="100%" height={220} className="md:h-[300px]">
+                <ComposedChart 
+                  data={chartData}
+                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                >
+                  <defs>
+                    <linearGradient id="profitLineGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" />
+                      <stop offset={`${zeroPosition}%`} stopColor="#22c55e" />
+                      <stop offset={`${zeroPosition}%`} stopColor="#ef4444" />
+                      <stop offset="100%" stopColor="#ef4444" />
+                    </linearGradient>
+                    <linearGradient id="profitAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.2} />
+                      <stop offset={`${zeroPosition}%`} stopColor="#22c55e" stopOpacity={0.05} />
+                      <stop offset={`${zeroPosition}%`} stopColor="#ef4444" stopOpacity={0.05} />
+                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0.2} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                    tickLine={{ stroke: 'hsl(var(--border))' }}
+                  />
+                  <YAxis 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                    tickLine={{ stroke: 'hsl(var(--border))' }}
+                    width={50}
+                  />
+                  <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeWidth={1} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    }}
+                    labelStyle={{ 
+                      color: 'hsl(var(--foreground))',
+                      fontWeight: 600,
+                      marginBottom: '8px'
+                    }}
+                    formatter={(value: number) => [
+                      formatCurrency(Math.abs(value)),
+                      value >= 0 ? 'Profit' : 'Loss'
+                    ]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="profit"
+                    fill="url(#profitAreaGradient)"
+                    stroke="none"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="profit" 
+                    stroke="url(#profitLineGradient)"
+                    strokeWidth={2.5}
+                    dot={(props: any) => {
+                      const { cx, cy, payload } = props;
+                      if (cx === undefined || cy === undefined) return null;
+                      const isNegative = payload.profit < 0;
+                      return (
+                        <circle
+                          key={`dot-${props.index}`}
+                          cx={cx}
+                          cy={cy}
+                          r={4}
+                          fill={isNegative ? '#ef4444' : '#22c55e'}
+                          stroke="#fff"
+                          strokeWidth={2}
+                        />
+                      );
+                    }}
+                    activeDot={(props: any) => {
+                      const { cx, cy, payload } = props;
+                      const isNegative = payload.profit < 0;
+                      return (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={6}
+                          fill={isNegative ? '#ef4444' : '#22c55e'}
+                          stroke="#fff"
+                          strokeWidth={2}
+                        />
+                      );
+                    }}
+                    name="Profit/Loss"
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Vehicles Performance Today */}
       {vehiclePerformance.length > 0 && (
