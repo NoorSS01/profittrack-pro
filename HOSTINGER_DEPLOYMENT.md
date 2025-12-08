@@ -76,12 +76,23 @@ In hPanel:
 
 ## 4. Environment Variables
 
-This project uses Supabase. The `.env` file contains:
+This project uses Supabase and Google Gemini AI. The `.env` file contains:
 ```
+# Supabase Configuration
 VITE_SUPABASE_PROJECT_ID="your-project-id"
 VITE_SUPABASE_PUBLISHABLE_KEY="your-key"
 VITE_SUPABASE_URL="https://your-project-id.supabase.co"
+
+# Google Gemini API Key (for AI Chatbot)
+VITE_GEMINI_API_KEY="your-gemini-api-key"
 ```
+
+### Getting a Gemini API Key
+
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy the key and add it to your `.env` file
 
 **Important**: Environment variables are embedded at build time in Vite. The `.env` file must be present when running `npm run build`.
 
@@ -95,6 +106,8 @@ VITE_SUPABASE_URL="https://your-project-id.supabase.co"
 | Assets not loading | Verify `base: "/dist/"` in vite.config.ts |
 | Routes 404 on refresh | `.htaccess` rewrite rules missing |
 | Supabase errors | Check `.env` was present during build |
+| AI chatbot not working | Verify `VITE_GEMINI_API_KEY` is set in `.env` before build |
+| AI says "not configured" | Rebuild with valid Gemini API key in `.env` |
 
 ---
 

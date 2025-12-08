@@ -7,6 +7,7 @@ import { AuthProvider } from "./components/AuthProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
+import { ChatProvider } from "./contexts/ChatContext";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Vehicles from "./pages/Vehicles";
@@ -25,6 +26,7 @@ const App = () => (
       <PWAInstallPrompt />
       <BrowserRouter>
         <AuthProvider>
+          <ChatProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route
@@ -88,6 +90,7 @@ const App = () => (
               }
             />
           </Routes>
+          </ChatProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

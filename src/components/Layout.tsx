@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useHaptic } from "@/hooks/use-haptic";
 import { useSwipe } from "@/hooks/use-swipe";
+import { ChatWidget } from "./chat/ChatWidget";
 
 interface LayoutProps {
   children: ReactNode;
@@ -235,6 +236,9 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
         )}
       </main>
+
+      {/* AI Chat Widget */}
+      <ChatWidget />
     </div>
   );
 };
