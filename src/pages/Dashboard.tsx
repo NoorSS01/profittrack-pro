@@ -156,15 +156,15 @@ const Dashboard = () => {
             .map(([_, value]) => value);
           setChartData(sortedData);
         } else if (timePeriod === '1month') {
-          // Group by day for 1 month view
+          // Group by day for 1 month view - only up to today, not future dates
           const dailyData: { [key: string]: ChartDataPoint } = {};
           
-          // Initialize all days in the current month
+          // Initialize days from month start to today only (no future dates)
           const monthStart = startOfMonth(new Date());
-          const monthEnd = endOfMonth(new Date());
-          const daysInMonth = monthEnd.getDate();
+          const todayDate = new Date();
+          const currentDay = todayDate.getDate();
           
-          for (let i = 0; i < daysInMonth; i++) {
+          for (let i = 0; i < currentDay; i++) {
             const date = format(new Date(monthStart.getFullYear(), monthStart.getMonth(), i + 1), "yyyy-MM-dd");
             dailyData[date] = {
               date: format(new Date(monthStart.getFullYear(), monthStart.getMonth(), i + 1), "MMM dd"),
@@ -443,6 +443,7 @@ const Dashboard = () => {
                     dataKey="profit"
                     fill="url(#profitAreaGradient)"
                     stroke="none"
+                    tooltipType="none"
                   />
                   <Line 
                     type="monotone" 
