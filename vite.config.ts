@@ -29,28 +29,28 @@ export default defineConfig(({ mode }) => ({
         background_color: "#0a1929",
         display: "standalone",
         orientation: "portrait",
-        scope: "/",
-        start_url: "/",
+        scope: "/dist/",
+        start_url: "/dist/",
         categories: ["business", "finance", "productivity"],
         icons: [
           {
-            src: "pwa-192x192.png",
+            src: "/dist/pwa-192x192.png",
             sizes: "192x192",
             type: "image/png",
           },
           {
-            src: "pwa-512x512.png",
+            src: "/dist/pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
           },
           {
-            src: "pwa-512x512.png",
+            src: "/dist/pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
           },
           {
-            src: "apple-touch-icon.png",
+            src: "/dist/apple-touch-icon.png",
             sizes: "180x180",
             type: "image/png",
             purpose: "apple touch icon",
@@ -58,14 +58,14 @@ export default defineConfig(({ mode }) => ({
         ],
         screenshots: [
           {
-            src: "pwa-512x512.png",
+            src: "/dist/pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
             form_factor: "wide",
             label: "TransportPro Dashboard"
           },
           {
-            src: "pwa-512x512.png",
+            src: "/dist/pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
             form_factor: "narrow",
@@ -77,15 +77,15 @@ export default defineConfig(({ mode }) => ({
             name: "Add Daily Entry",
             short_name: "Add Entry",
             description: "Add a new daily entry",
-            url: "/daily-entry",
-            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
+            url: "/dist/",
+            icons: [{ src: "/dist/pwa-192x192.png", sizes: "192x192" }]
           },
           {
             name: "View Reports",
             short_name: "Reports",
             description: "View business reports",
-            url: "/reports",
-            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
+            url: "/dist/",
+            icons: [{ src: "/dist/pwa-192x192.png", sizes: "192x192" }]
           }
         ],
       },
