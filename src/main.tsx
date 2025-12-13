@@ -1,5 +1,4 @@
 import { createRoot } from "react-dom/client";
-import { registerSW } from "virtual:pwa-register";
 import App from "./App.tsx";
 import "./index.css";
 import { CurrencyProvider } from "./contexts/CurrencyContext";
@@ -19,7 +18,6 @@ declare global {
 }
 
 // Capture beforeinstallprompt EARLY - before React mounts
-// This prevents missing the event due to timing issues
 window.deferredInstallPrompt = null;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
@@ -27,20 +25,23 @@ window.addEventListener("beforeinstallprompt", (e) => {
   console.log("PWA: Install prompt captured and stored");
 });
 
-// Register service worker with auto-update
-const updateSW = registerSW({
-  onNeedRefresh() {
-    if (confirm("New content available. Reload to update?")) {
-      updateSW(true);
-    }
-  },
-  onOfflineReady() {
-    console.log("App ready to work offline");
-  },
-});
+// Register service worker manually
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/dist/sw.js", { scope: "/" })
+      .then((registration) => {
+        console.log("PWA: Service Worker registered with scope:", registration.scope);
+      })
+      .catch((error) => {
+        console.log("PWA: Service Worker registration failed:", error);
+      });
+  });
+}
 
 createRoot(document.getElementById("root")!).render(
   <CurrencyProvider>
     <App />
   </CurrencyProvider>
 );
+
