@@ -29,8 +29,8 @@ export default defineConfig(({ mode }) => ({
         background_color: "#0a1929",
         display: "standalone",
         orientation: "portrait",
-        scope: "/dist/",
-        start_url: "/dist/",
+        scope: "/",
+        start_url: "/",
         categories: ["business", "finance", "productivity"],
         icons: [
           {
@@ -79,14 +79,14 @@ export default defineConfig(({ mode }) => ({
             name: "Add Daily Entry",
             short_name: "Add Entry",
             description: "Add a new daily entry",
-            url: "/dist/",
+            url: "/daily-entry",
             icons: [{ src: "/dist/pwa-192x192.png", sizes: "192x192" }]
           },
           {
             name: "View Reports",
             short_name: "Reports",
             description: "View business reports",
-            url: "/dist/",
+            url: "/reports",
             icons: [{ src: "/dist/pwa-192x192.png", sizes: "192x192" }]
           }
         ],
