@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, eachDayOfInterval, parseISO, isBefore, startOfDay, isAfter } from "date-fns";
-import { AlertTriangle, Calendar, Loader2, ArrowRight } from "lucide-react";
+import { AlertTriangle, Calendar, Loader2, ArrowRight, Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,12 @@ interface MissingEntryForm {
   fuelPricePerLiter: string;
 }
 
+interface BulkVehicleEntry {
+  vehicle_id: string;
+  totalKilometers: string;
+  fuelPricePerLiter: string;
+}
+
 interface MissingEntriesModalProps {
   onComplete: () => void;
 }
@@ -53,16 +59,13 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
   const [formEntries, setFormEntries] = useState<MissingEntryForm[]>([]);
   const [autoFilledCount, setAutoFilledCount] = useState(0);
   
-  // Bulk mode state
+  // Entry mode
   const [entryMode, setEntryMode] = useState<"daily" | "bulk">("daily");
-  const [bulkForm, setBulkForm] = useState({
-    vehicle_id: "",
-    totalKilometers: "",
-    fuelPricePerLiter: "100",
-  });
+  
+  // Bulk mode - multiple vehicles support
+  const [bulkEntries, setBulkEntries] = useState<BulkVehicleEntry[]>([]);
 
   useEffect(() => {
-    // Load entry mode preference
     const savedMode = localStorage.getItem("missing_entry_mode") as "daily" | "bulk" | null;
     if (savedMode) {
       setEntryMode(savedMode);
@@ -76,7 +79,6 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
   const checkMissingEntries = async () => {
     setLoading(true);
     try {
-      // Fetch user's vehicles
       const { data: vehiclesData, error: vehiclesError } = await supabase
         .from("vehicles")
         .select("*")
@@ -93,7 +95,6 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
       
       setVehicles(vehiclesData);
 
-      // Get user's profile creation date
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("created_at")
@@ -116,7 +117,6 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
         return;
       }
 
-      // Get all entry dates
       const { data: entries, error: entriesError } = await supabase
         .from("daily_entries")
         .select("entry_date")
@@ -128,7 +128,6 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
 
       const existingDates = new Set((entries || []).map(e => e.entry_date));
 
-      // Find missing dates
       const allDates = eachDayOfInterval({ start: accountCreatedDate, end: yesterday });
       const allMissing = allDates
         .filter(date => !existingDates.has(format(date, "yyyy-MM-dd")))
@@ -140,7 +139,6 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
         return;
       }
 
-      // Split into fillable and auto-zero
       const fillableCutoff = subDays(today, MAX_FILLABLE_DAYS);
       const fillableDates = allMissing.filter(date => 
         isAfter(parseISO(date), fillableCutoff) || format(fillableCutoff, "yyyy-MM-dd") === date
@@ -149,7 +147,6 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
         isBefore(parseISO(date), fillableCutoff)
       );
 
-      // Auto-insert zero entries for older dates
       if (autoZeroDates.length > 0 && vehiclesData.length > 0) {
         const defaultVehicle = vehiclesData[0];
         const zeroEntries = autoZeroDates.map(date => ({
@@ -191,7 +188,14 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
       }
 
       setMissingDates(fillableDates);
-      setBulkForm(prev => ({ ...prev, vehicle_id: vehiclesData[0]?.id || "" }));
+      
+      // Initialize bulk entries with first vehicle
+      setBulkEntries([{
+        vehicle_id: vehiclesData[0]?.id || "",
+        totalKilometers: "",
+        fuelPricePerLiter: "100",
+      }]);
+      
       setFormEntries(
         fillableDates.map(date => ({
           date,
@@ -221,7 +225,34 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
     });
   };
 
-  const calculateEntryData = (date: string, vehicleId: string, km: number, fuelPrice: number, vehicle: Vehicle) => {
+  const updateBulkEntry = (index: number, field: keyof BulkVehicleEntry, value: string) => {
+    setBulkEntries(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const addBulkVehicle = () => {
+    const usedVehicleIds = bulkEntries.map(e => e.vehicle_id);
+    const availableVehicle = vehicles.find(v => !usedVehicleIds.includes(v.id));
+    
+    if (availableVehicle) {
+      setBulkEntries(prev => [...prev, {
+        vehicle_id: availableVehicle.id,
+        totalKilometers: "",
+        fuelPricePerLiter: "100",
+      }]);
+    }
+  };
+
+  const removeBulkVehicle = (index: number) => {
+    if (bulkEntries.length > 1) {
+      setBulkEntries(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const calculateEntryData = (date: string, vehicleId: string, km: number, fuelPrice: number, vehicle: Vehicle, note: string = "") => {
     const fuelFilled = km / vehicle.mileage_kmpl;
     const fuelCost = fuelFilled * fuelPrice;
 
@@ -253,7 +284,7 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
       misc_expense: 0,
       total_expenses: totalExpenses,
       net_profit: netProfit,
-      notes: entryMode === "bulk" ? "Bulk entry - KM distributed across days" : "",
+      notes: note,
     };
   };
 
@@ -309,40 +340,59 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
   };
 
   const handleSaveBulk = async () => {
-    if (!bulkForm.vehicle_id) {
-      toast({
-        title: "Missing Vehicle",
-        description: "Please select a vehicle",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!bulkForm.totalKilometers || parseFloat(bulkForm.totalKilometers) <= 0) {
-      toast({
-        title: "Missing Kilometers",
-        description: "Please enter total kilometers",
-        variant: "destructive",
-      });
-      return;
+    // Validate all bulk entries
+    for (let i = 0; i < bulkEntries.length; i++) {
+      const entry = bulkEntries[i];
+      if (!entry.vehicle_id) {
+        toast({
+          title: "Missing Vehicle",
+          description: `Please select a vehicle for entry ${i + 1}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!entry.totalKilometers || parseFloat(entry.totalKilometers) <= 0) {
+        toast({
+          title: "Missing Kilometers",
+          description: `Please enter kilometers for ${vehicles.find(v => v.id === entry.vehicle_id)?.vehicle_name}`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setSaving(true);
     try {
-      const totalKm = parseFloat(bulkForm.totalKilometers);
-      const kmPerDay = totalKm / missingDates.length;
-      const fuelPrice = parseFloat(bulkForm.fuelPricePerLiter) || 100;
-      const vehicle = vehicles.find(v => v.id === bulkForm.vehicle_id)!;
+      const allEntriesToInsert: any[] = [];
+      
+      // For each vehicle, distribute KM across all missing dates
+      for (const bulkEntry of bulkEntries) {
+        const totalKm = parseFloat(bulkEntry.totalKilometers);
+        const kmPerDay = totalKm / missingDates.length;
+        const fuelPrice = parseFloat(bulkEntry.fuelPricePerLiter) || 100;
+        const vehicle = vehicles.find(v => v.id === bulkEntry.vehicle_id)!;
 
-      const entriesToInsert = missingDates.map(date => 
-        calculateEntryData(date, bulkForm.vehicle_id, kmPerDay, fuelPrice, vehicle)
-      );
+        const vehicleEntries = missingDates.map(date => 
+          calculateEntryData(
+            date, 
+            bulkEntry.vehicle_id, 
+            kmPerDay, 
+            fuelPrice, 
+            vehicle,
+            `Bulk entry - ${vehicle.vehicle_name}: ${kmPerDay.toFixed(1)} km/day`
+          )
+        );
+        
+        allEntriesToInsert.push(...vehicleEntries);
+      }
 
-      const { error } = await supabase.from("daily_entries").insert(entriesToInsert);
+      const { error } = await supabase.from("daily_entries").insert(allEntriesToInsert);
       if (error) throw error;
 
+      const vehicleCount = bulkEntries.length;
       toast({
         title: "Success!",
-        description: `Saved ${entriesToInsert.length} entries (${kmPerDay.toFixed(1)} km/day)`,
+        description: `Saved entries for ${vehicleCount} vehicle${vehicleCount > 1 ? 's' : ''} across ${missingDates.length} days`,
       });
 
       setIsOpen(false);
@@ -379,6 +429,8 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
   const dateRange = missingDates.length > 0 
     ? `${format(parseISO(missingDates[0]), "dd MMM")} - ${format(parseISO(missingDates[missingDates.length - 1]), "dd MMM yyyy")}`
     : "";
+
+  const canAddMoreVehicles = bulkEntries.length < vehicles.length;
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
@@ -430,7 +482,6 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
         </div>
 
         {entryMode === "daily" ? (
-          // Daily Entry Mode
           <ScrollArea className="max-h-[50vh] px-6">
             <div className="space-y-4 py-4">
               {formEntries.map((entry, index) => (
@@ -488,68 +539,105 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
             </div>
           </ScrollArea>
         ) : (
-          // Bulk Entry Mode
-          <div className="px-6 py-4">
-            <div className="p-4 border rounded-lg bg-card space-y-4">
-              <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
+          <ScrollArea className="max-h-[50vh] px-6">
+            <div className="py-4 space-y-4">
+              {/* Date Range Display */}
+              <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
                 <span className="font-medium text-foreground">{format(parseISO(missingDates[0]), "dd MMM")}</span>
                 <ArrowRight className="h-4 w-4" />
                 <span className="font-medium text-foreground">{format(parseISO(missingDates[missingDates.length - 1]), "dd MMM yyyy")}</span>
-                <span className="text-xs bg-muted px-2 py-1 rounded">({missingDates.length} days)</span>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">({missingDates.length} days)</span>
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Vehicle</Label>
-                  <Select
-                    value={bulkForm.vehicle_id}
-                    onValueChange={(value) => setBulkForm(prev => ({ ...prev, vehicle_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select vehicle" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vehicles.map((vehicle) => (
-                        <SelectItem key={vehicle.id} value={vehicle.id}>
-                          {vehicle.vehicle_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+              {/* Vehicle Entries */}
+              {bulkEntries.map((entry, index) => (
+                <div key={index} className="p-4 border rounded-lg bg-card space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">Vehicle {index + 1}</span>
+                    {bulkEntries.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeBulkVehicle(index)}
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Vehicle</Label>
+                      <Select
+                        value={entry.vehicle_id}
+                        onValueChange={(value) => updateBulkEntry(index, "vehicle_id", value)}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Select vehicle" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vehicles.map((vehicle) => (
+                            <SelectItem 
+                              key={vehicle.id} 
+                              value={vehicle.id}
+                              disabled={bulkEntries.some((e, i) => i !== index && e.vehicle_id === vehicle.id)}
+                            >
+                              {vehicle.vehicle_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <Label className="text-xs">Total Kilometers</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g., 500"
+                        value={entry.totalKilometers}
+                        onChange={(e) => updateBulkEntry(index, "totalKilometers", e.target.value)}
+                        className="h-10"
+                      />
+                      {entry.totalKilometers && (
+                        <p className="text-[10px] text-muted-foreground">
+                          ≈ {(parseFloat(entry.totalKilometers) / missingDates.length).toFixed(1)} km/day
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <Label className="text-xs">Fuel Price (₹/L)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={entry.fuelPricePerLiter}
+                        onChange={(e) => updateBulkEntry(index, "fuelPricePerLiter", e.target.value)}
+                        className="h-10"
+                      />
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label>Total Kilometers</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g., 500"
-                    value={bulkForm.totalKilometers}
-                    onChange={(e) => setBulkForm(prev => ({ ...prev, totalKilometers: e.target.value }))}
-                  />
-                  {bulkForm.totalKilometers && (
-                    <p className="text-xs text-muted-foreground">
-                      ≈ {(parseFloat(bulkForm.totalKilometers) / missingDates.length).toFixed(1)} km/day
-                    </p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Fuel Price (₹/L)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={bulkForm.fuelPricePerLiter}
-                    onChange={(e) => setBulkForm(prev => ({ ...prev, fuelPricePerLiter: e.target.value }))}
-                  />
-                </div>
-              </div>
+              ))}
+
+              {/* Add Vehicle Button */}
+              {canAddMoreVehicles && (
+                <Button
+                  variant="outline"
+                  onClick={addBulkVehicle}
+                  className="w-full gap-2 border-dashed"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Another Vehicle
+                </Button>
+              )}
               
               <p className="text-xs text-muted-foreground text-center">
-                Total kilometers will be distributed equally across all {missingDates.length} missing days
+                Total kilometers for each vehicle will be distributed equally across all {missingDates.length} missing days
               </p>
             </div>
-          </div>
+          </ScrollArea>
         )}
 
         <div className="p-6 pt-4 border-t bg-muted/30 flex gap-3">
@@ -572,7 +660,7 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
                 Saving...
               </>
             ) : (
-              `Save ${missingDates.length} Entries`
+              `Save ${entryMode === "bulk" ? `${bulkEntries.length} Vehicle${bulkEntries.length > 1 ? 's' : ''}` : `${missingDates.length} Entries`}`
             )}
           </Button>
         </div>

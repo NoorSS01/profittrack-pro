@@ -59,7 +59,7 @@ export const Layout = ({ children }: LayoutProps) => {
       onSwipeLeft: handleSwipeLeft,
       onSwipeRight: handleSwipeRight,
     },
-    { threshold: 80 }
+    { threshold: 120 } // Increased threshold for less sensitive swipe
   );
 
   const handleNavigate = (path: string) => {

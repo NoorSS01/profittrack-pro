@@ -17,13 +17,14 @@ interface SwipeState {
 interface TouchPosition {
   x: number;
   y: number;
+  time: number;
 }
 
 export const useSwipe = (
   handlers: SwipeHandlers,
-  options: { threshold?: number; preventScroll?: boolean } = {}
+  options: { threshold?: number; preventScroll?: boolean; minVelocity?: number } = {}
 ) => {
-  const { threshold = 50, preventScroll = false } = options;
+  const { threshold = 50, preventScroll = false, minVelocity = 0.3 } = options;
   const [swipeState, setSwipeState] = useState<SwipeState>({
     swiping: false,
     direction: null,
@@ -36,8 +37,8 @@ export const useSwipe = (
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
-    startPos.current = { x: touch.clientX, y: touch.clientY };
-    currentPos.current = { x: touch.clientX, y: touch.clientY };
+    startPos.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    currentPos.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
     setSwipeState({ swiping: true, direction: null, deltaX: 0, deltaY: 0 });
   }, []);
 
@@ -75,17 +76,23 @@ export const useSwipe = (
 
     const deltaX = currentPos.current.x - startPos.current.x;
     const deltaY = currentPos.current.y - startPos.current.y;
+    const deltaTime = Date.now() - startPos.current.time;
+    
+    // Calculate velocity (pixels per millisecond)
+    const velocityX = Math.abs(deltaX) / deltaTime;
+    const velocityY = Math.abs(deltaY) / deltaTime;
 
+    // Only trigger swipe if both threshold AND velocity requirements are met
     if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      if (deltaX > threshold && handlers.onSwipeRight) {
+      if (deltaX > threshold && velocityX >= minVelocity && handlers.onSwipeRight) {
         handlers.onSwipeRight();
-      } else if (deltaX < -threshold && handlers.onSwipeLeft) {
+      } else if (deltaX < -threshold && velocityX >= minVelocity && handlers.onSwipeLeft) {
         handlers.onSwipeLeft();
       }
     } else {
-      if (deltaY > threshold && handlers.onSwipeDown) {
+      if (deltaY > threshold && velocityY >= minVelocity && handlers.onSwipeDown) {
         handlers.onSwipeDown();
-      } else if (deltaY < -threshold && handlers.onSwipeUp) {
+      } else if (deltaY < -threshold && velocityY >= minVelocity && handlers.onSwipeUp) {
         handlers.onSwipeUp();
       }
     }
@@ -93,7 +100,7 @@ export const useSwipe = (
     startPos.current = null;
     currentPos.current = null;
     setSwipeState({ swiping: false, direction: null, deltaX: 0, deltaY: 0 });
-  }, [handlers, threshold]);
+  }, [handlers, threshold, minVelocity]);
 
   return {
     swipeState,
