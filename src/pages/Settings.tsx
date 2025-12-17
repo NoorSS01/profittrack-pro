@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings as SettingsIcon, DollarSign } from "lucide-react";
+import { Settings as SettingsIcon, DollarSign, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { SettingsSkeleton } from "@/components/skeletons/SettingsSkeleton";
@@ -17,11 +17,31 @@ const Settings = () => {
   const { currency, setCurrency } = useCurrency();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [missingEntryMode, setMissingEntryMode] = useState<"daily" | "bulk">("daily");
   const [formData, setFormData] = useState({
     business_name: "",
     contact_email: "",
     billing_cycle_start: "1",
   });
+
+  // Load missing entry mode from localStorage
+  useEffect(() => {
+    const savedMode = localStorage.getItem("missing_entry_mode") as "daily" | "bulk" | null;
+    if (savedMode) {
+      setMissingEntryMode(savedMode);
+    }
+  }, []);
+
+  const handleMissingEntryModeChange = (value: "daily" | "bulk") => {
+    setMissingEntryMode(value);
+    localStorage.setItem("missing_entry_mode", value);
+    toast({
+      title: "Setting Updated",
+      description: value === "daily" 
+        ? "Missing entries will be filled day by day" 
+        : "Missing entries can be filled with total kilometers for date range",
+    });
+  };
 
   useEffect(() => {
     if (user) {
@@ -170,6 +190,35 @@ const Settings = () => {
             </Select>
             <p className="text-sm text-muted-foreground">
               This will update currency display across the entire website
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5" />
+            Missing Entry Mode
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label htmlFor="missing_entry_mode">How to fill missing entries</Label>
+            <Select value={missingEntryMode} onValueChange={(value) => handleMissingEntryModeChange(value as "daily" | "bulk")}>
+              <SelectTrigger id="missing_entry_mode" className="h-12">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily Entry - Fill each day separately</SelectItem>
+                <SelectItem value="bulk">Bulk Entry - Enter total KM for date range</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              {missingEntryMode === "daily" 
+                ? "You'll enter kilometers for each missing day individually"
+                : "You'll enter total kilometers which will be distributed across missing days"
+              }
             </p>
           </div>
         </CardContent>
