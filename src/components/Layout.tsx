@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useHaptic } from "@/hooks/use-haptic";
 import { useSwipe } from "@/hooks/use-swipe";
 import { ChatWidget } from "./chat/ChatWidget";
+import { TrialBanner } from "./TrialBanner";
 
 interface LayoutProps {
   children: ReactNode;
@@ -215,13 +216,16 @@ export const Layout = ({ children }: LayoutProps) => {
         {...swipeHandlers}
       >
         <div 
-          className="p-4 lg:p-8 transition-transform duration-100 ease-out"
+          className="transition-transform duration-100 ease-out"
           style={{ 
             transform: `translateX(${swipeOffset}px)`,
             opacity: swipeState.swiping ? 1 - Math.abs(swipeState.deltaX) / 500 : 1
           }}
         >
-          {children}
+          <TrialBanner />
+          <div className="p-4 lg:p-8">
+            {children}
+          </div>
         </div>
         
         {/* Swipe Indicators */}

@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/AuthProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { SubscriptionGuard } from "./components/SubscriptionGuard";
+import { SubscriptionProvider } from "./contexts/SubscriptionContext";
 import { Layout } from "./components/Layout";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { ChatProvider } from "./contexts/ChatContext";
@@ -15,6 +17,7 @@ import DailyEntry from "./pages/DailyEntry";
 import Reports from "./pages/Reports";
 import TripHistory from "./pages/TripHistory";
 import Settings from "./pages/Settings";
+import Pricing from "./pages/Pricing";
 
 const queryClient = new QueryClient();
 
@@ -26,71 +29,90 @@ const App = () => (
       <PWAInstallPrompt />
       <BrowserRouter>
         <AuthProvider>
-          <ChatProvider>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Dashboard />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vehicles"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Vehicles />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/daily-entry"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <DailyEntry />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reports"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Reports />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/trip-history"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <TripHistory />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Settings />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-          </ChatProvider>
+          <SubscriptionProvider>
+            <ChatProvider>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/pricing" element={
+                  <ProtectedRoute>
+                    <Pricing />
+                  </ProtectedRoute>
+                } />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <SubscriptionGuard>
+                        <Layout>
+                          <Dashboard />
+                        </Layout>
+                      </SubscriptionGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/vehicles"
+                  element={
+                    <ProtectedRoute>
+                      <SubscriptionGuard>
+                        <Layout>
+                          <Vehicles />
+                        </Layout>
+                      </SubscriptionGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/daily-entry"
+                  element={
+                    <ProtectedRoute>
+                      <SubscriptionGuard>
+                        <Layout>
+                          <DailyEntry />
+                        </Layout>
+                      </SubscriptionGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={
+                    <ProtectedRoute>
+                      <SubscriptionGuard>
+                        <Layout>
+                          <Reports />
+                        </Layout>
+                      </SubscriptionGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/trip-history"
+                  element={
+                    <ProtectedRoute>
+                      <SubscriptionGuard>
+                        <Layout>
+                          <TripHistory />
+                        </Layout>
+                      </SubscriptionGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <SubscriptionGuard>
+                        <Layout>
+                          <Settings />
+                        </Layout>
+                      </SubscriptionGuard>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </ChatProvider>
+          </SubscriptionProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
