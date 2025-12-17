@@ -18,6 +18,7 @@ import { useHaptic } from "@/hooks/use-haptic";
 import { useSwipe } from "@/hooks/use-swipe";
 import { ChatWidget } from "./chat/ChatWidget";
 import { TrialBanner } from "./TrialBanner";
+import { UserAccountMenu } from "./UserAccountMenu";
 
 interface LayoutProps {
   children: ReactNode;
@@ -109,17 +110,7 @@ export const Layout = ({ children }: LayoutProps) => {
         <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
           TransportPro
         </h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => handleNavigate("/settings")}
-          className={cn(
-            "h-9 w-9 rounded-full touch-feedback",
-            location.pathname === "/settings" && "bg-primary/10 text-primary"
-          )}
-        >
-          <Settings className="h-5 w-5" />
-        </Button>
+        <UserAccountMenu />
       </header>
 
       {/* Mobile Bottom Navigation */}
@@ -173,10 +164,15 @@ export const Layout = ({ children }: LayoutProps) => {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex-col">
         <div className="p-6 border-b border-border">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-            TransportPro
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">Profit Tracker</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                TransportPro
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">Profit Tracker</p>
+            </div>
+            <UserAccountMenu />
+          </div>
         </div>
         
         <nav className="flex-1 p-4 space-y-1">
