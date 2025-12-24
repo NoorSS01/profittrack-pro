@@ -15,7 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, Settings, Crown, LogOut, CreditCard, HelpCircle } from "lucide-react";
+import { Settings, Crown, LogOut, CreditCard, Shield } from "lucide-react";
+
+// Admin emails list
+const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
 
 export const UserAccountMenu = () => {
   const { user } = useAuth();
@@ -23,6 +26,8 @@ export const UserAccountMenu = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -100,6 +105,13 @@ export const UserAccountMenu = () => {
           <CreditCard className="mr-2 h-4 w-4" />
           <span>Billing</span>
         </DropdownMenuItem>
+        
+        {isAdmin && (
+          <DropdownMenuItem onClick={() => { setOpen(false); navigate("/admin"); }}>
+            <Shield className="mr-2 h-4 w-4" />
+            <span>Admin Panel</span>
+          </DropdownMenuItem>
+        )}
         
         <DropdownMenuSeparator />
         
