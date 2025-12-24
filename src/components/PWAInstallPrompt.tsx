@@ -188,7 +188,7 @@ export function PWAInstallPrompt() {
           </div>
           
           {isIOS ? (
-            // iOS doesn't support beforeinstallprompt, show manual instructions
+            // iOS doesn't support beforeinstallprompt, spl how manual instructions
             <div className="space-y-2 p-3 bg-muted/50 rounded-lg text-sm">
               <div className="flex items-center gap-2">
                 <Share className="h-4 w-4 text-primary" />

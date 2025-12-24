@@ -54,8 +54,8 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   },
   ultra: {
     maxVehicles: 999,
-    tripHistoryDays: 365,
-    dashboardMonths: 6,
+    tripHistoryDays: 9999,
+    dashboardMonths: 60,
     aiChatEnabled: true,
     aiChatDailyLimit: 999,
     reportsExport: true,
@@ -72,10 +72,11 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   },
 };
 
+// Yearly = 20% discount (monthly * 12 * 0.8)
 export const PLAN_PRICES = {
-  basic: { monthly: 299, yearly: 2999 },
-  standard: { monthly: 599, yearly: 5999 },
-  ultra: { monthly: 999, yearly: 9999 },
+  basic: { monthly: 299, yearly: Math.round(299 * 12 * 0.8) }, // 2870
+  standard: { monthly: 599, yearly: Math.round(599 * 12 * 0.8) }, // 5750
+  ultra: { monthly: 4999, yearly: Math.round(4999 * 12 * 0.8) }, // 47990
 };
 
 const FREE_TRIAL_DAYS = 15;

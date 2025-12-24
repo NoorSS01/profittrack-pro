@@ -18,6 +18,7 @@ import Reports from "./pages/Reports";
 import TripHistory from "./pages/TripHistory";
 import Settings from "./pages/Settings";
 import Pricing from "./pages/Pricing";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,11 @@ const App = () => (
                 <Route path="/pricing" element={
                   <ProtectedRoute>
                     <Pricing />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin" element={
+                  <ProtectedRoute>
+                    <Admin />
                   </ProtectedRoute>
                 } />
                 <Route
