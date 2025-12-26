@@ -257,17 +257,11 @@ const Vehicles = () => {
           
           {/* Action buttons */}
           <div className="flex items-center gap-2">
-            {!canAddVehicle && (
-              <Badge variant="secondary" className="gap-1 hidden sm:flex">
-                <Lock className="h-3 w-3" />
-                Limit Reached
-              </Badge>
-            )}
             <Button 
               size="default"
               onClick={handleAddVehicleClick}
               variant={canAddVehicle ? "default" : "outline"}
-              className={!canAddVehicle ? "opacity-70" : ""}
+              className={!canAddVehicle ? "border-amber-500/50 text-amber-600 hover:bg-amber-500/10" : ""}
             >
               {canAddVehicle ? (
                 <>
@@ -277,8 +271,10 @@ const Vehicles = () => {
                 </>
               ) : (
                 <>
-                  <Crown className="h-4 w-4 mr-2" />
-                  Upgrade
+                  <Lock className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Add Vehicle</span>
+                  <span className="sm:hidden">Add</span>
+                  <Crown className="h-4 w-4 ml-2 text-amber-500" />
                 </>
               )}
             </Button>

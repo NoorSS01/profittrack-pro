@@ -274,8 +274,8 @@ const Admin = () => {
 
   // Bottom navigation items for mobile
   const navItems = [
-    { id: 'dashboard' as AdminTab, icon: Home, label: 'Dashboard' },
-    { id: 'payments' as AdminTab, icon: CreditCard, label: 'Payments' },
+    { id: 'dashboard' as AdminTab, icon: Home, label: 'Home' },
+    { id: 'payments' as AdminTab, icon: CreditCard, label: 'Pay' },
     { id: 'users' as AdminTab, icon: Users, label: 'Users' },
   ];
 
@@ -321,7 +321,7 @@ const Admin = () => {
       </header>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card/95 backdrop-blur-md border-t border-border/50 z-50 flex items-center justify-around px-4 pb-safe">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card/95 backdrop-blur-md border-t border-border/50 z-50 flex items-center justify-around px-2 pb-safe">
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
           return (
@@ -329,7 +329,7 @@ const Admin = () => {
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               className={cn(
-                "flex flex-col items-center justify-center py-2 px-4 rounded-xl transition-all duration-200 min-w-[70px]",
+                "relative flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all duration-200 min-w-[60px]",
                 isActive 
                   ? "text-primary bg-primary/10" 
                   : "text-muted-foreground"
@@ -340,7 +340,7 @@ const Admin = () => {
                 {item.label}
               </span>
               {item.id === 'payments' && analytics.pendingPayments > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] text-white flex items-center justify-center">
+                <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-destructive text-[10px] text-white flex items-center justify-center">
                   {analytics.pendingPayments}
                 </span>
               )}
@@ -550,43 +550,62 @@ const Admin = () => {
             <div className="space-y-4 animate-fade-in">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    All Users ({allUsers.length})
-                  </CardTitle>
-                  <CardDescription className="hidden sm:block">View registered users and subscriptions</CardDescription>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        All Users ({allUsers.length})
+                      </CardTitle>
+                      <CardDescription className="hidden sm:block">View registered users and subscriptions</CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {allUsers.map(userItem => (
-                      <div key={userItem.id} className="border rounded-lg p-3 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium truncate">{userItem.full_name || userItem.email}</p>
-                          <p className="text-xs text-muted-foreground truncate">{userItem.email}</p>
-                          <p className="text-[10px] text-muted-foreground">Joined: {format(new Date(userItem.created_at), "dd MMM yyyy")}</p>
-                        </div>
-                        <div className="text-right ml-3 flex-shrink-0">
-                          {userItem.subscription_plan ? (
-                            <>
-                              <Badge className="capitalize text-xs">{userItem.subscription_plan}</Badge>
-                              {userItem.subscription_end_date && (
-                                <p className="text-[10px] text-muted-foreground mt-1">
-                                  {new Date(userItem.subscription_end_date) < new Date() ? 'Expired' : `Exp: ${format(new Date(userItem.subscription_end_date), "dd MMM")}`}
-                                </p>
+                  {allUsers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">No users found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {allUsers.map(userItem => (
+                        <div key={userItem.id} className="border rounded-lg p-3 hover:bg-muted/30 transition-colors">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate text-sm sm:text-base">
+                                {userItem.full_name || 'No Name'}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">{userItem.email}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                Joined: {format(new Date(userItem.created_at), "dd MMM yyyy")}
+                              </p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              {userItem.subscription_plan ? (
+                                <div className="space-y-1">
+                                  <Badge className="capitalize text-xs">{userItem.subscription_plan}</Badge>
+                                  {userItem.subscription_end_date && (
+                                    <p className={cn(
+                                      "text-[10px]",
+                                      new Date(userItem.subscription_end_date) < new Date() 
+                                        ? "text-destructive" 
+                                        : "text-muted-foreground"
+                                    )}>
+                                      {new Date(userItem.subscription_end_date) < new Date() 
+                                        ? 'Expired' 
+                                        : `Exp: ${format(new Date(userItem.subscription_end_date), "dd MMM")}`}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <Badge variant="secondary" className="text-xs">Trial</Badge>
                               )}
-                            </>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">Trial</Badge>
-                          )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    {allUsers.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No users found
-                      </div>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

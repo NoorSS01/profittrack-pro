@@ -50,10 +50,17 @@ const Auth = () => {
   const handleGoogleAuth = async () => {
     setGoogleLoading(true);
     try {
+      // Get the current origin - works for both localhost and production
+      const redirectUrl = window.location.origin;
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
@@ -61,7 +68,7 @@ const Auth = () => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to sign in with Google",
+        description: error.message || "Failed to sign in with Google. Please check your Supabase Google OAuth configuration.",
         variant: "destructive",
       });
       setGoogleLoading(false);
