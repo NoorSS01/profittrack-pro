@@ -50,50 +50,25 @@ const Auth = () => {
   const handleGoogleAuth = async () => {
     setGoogleLoading(true);
     try {
-      // Build the redirect URL properly for both localhost and production
-      // For Hostinger deployment with /dist/ base path
-      const origin = window.location.origin;
-      const pathname = window.location.pathname;
+      // Simple redirect URL - just use the origin
+      // Supabase will handle the redirect properly
+      const redirectUrl = window.location.origin + (window.location.pathname.includes('/dist') ? '/dist/' : '/');
       
-      // Determine the correct redirect URL
-      // If we're on /dist/auth or /dist/, redirect back to /dist/
-      // If we're on localhost, redirect to root
-      let redirectUrl = origin;
-      
-      // Check if we're on Hostinger (has /dist/ in path)
-      if (pathname.includes('/dist')) {
-        redirectUrl = `${origin}/dist/`;
-      }
-      
-      console.log("Google Auth - Redirect URL:", redirectUrl);
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: redirectUrl,
-          skipBrowserRedirect: false,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
         },
       });
 
       if (error) {
-        console.error("Google Auth Error:", error);
         throw error;
-      }
-      
-      // The OAuth flow will redirect the browser
-      // If we get here and have a URL, manually redirect (fallback for some mobile browsers)
-      if (data?.url) {
-        window.location.href = data.url;
       }
     } catch (error: any) {
       console.error("Google Auth Error:", error);
       toast({
         title: "Authentication Error",
-        description: error.message || "Failed to sign in with Google. Please try again or use email/password.",
+        description: error.message || "Failed to sign in with Google. Please try again.",
         variant: "destructive",
       });
       setGoogleLoading(false);
