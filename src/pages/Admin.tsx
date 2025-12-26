@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { 
   Users, CreditCard, TrendingUp, Clock, CheckCircle2, XCircle, 
-  Loader2, Search, RefreshCw, Shield, Truck, Calendar
+  Loader2, Search, RefreshCw, Shield, Truck, Calendar, LogOut, Home
 } from "lucide-react";
 
 // Admin emails - add your email here
@@ -61,10 +61,15 @@ const Admin = () => {
 
   const checkAdminAccess = async () => {
     if (!user?.email) {
-      navigate("/");
+      setLoading(false);
+      navigate("/auth");
       return;
     }
-    if (ADMIN_EMAILS.includes(user.email)) {
+    
+    const isUserAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
+    console.log("Checking admin access for:", user.email, "Is admin:", isUserAdmin);
+    
+    if (isUserAdmin) {
       setIsAdmin(true);
       await Promise.all([fetchPaymentRequests(), fetchAnalytics()]);
     } else {
@@ -76,15 +81,22 @@ const Admin = () => {
 
   const fetchPaymentRequests = async () => {
     try {
-      // Use raw SQL query via rpc or direct fetch since table isn't in types
+      console.log("Fetching payment requests...");
       const { data, error } = await supabase
         .from("payment_requests" as any)
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Error fetching payments:", error);
+        throw error;
+      }
+      
+      console.log("Payment requests fetched:", data?.length || 0);
       setPaymentRequests((data as unknown as PaymentRequest[]) || []);
     } catch (error: any) {
       console.error("Error fetching payments:", error);
+      toast({ title: "Error", description: "Failed to fetch payment requests: " + error.message, variant: "destructive" });
     }
   };
 
@@ -96,7 +108,6 @@ const Admin = () => {
         supabase.from("daily_entries").select("id", { count: "exact" }),
       ]);
       
-      // Fetch payments separately
       const { data: paymentsData } = await supabase
         .from("payment_requests" as any)
         .select("*");
@@ -122,14 +133,12 @@ const Admin = () => {
   const handleApprove = async (request: PaymentRequest) => {
     setProcessingId(request.id);
     try {
-      // Update payment request status
       const { error: paymentError } = await supabase
         .from("payment_requests" as any)
         .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user?.id })
         .eq("id", request.id);
       if (paymentError) throw paymentError;
 
-      // Calculate subscription end date
       const endDate = new Date();
       if (request.billing_cycle === "yearly") {
         endDate.setFullYear(endDate.getFullYear() + 1);
@@ -137,7 +146,6 @@ const Admin = () => {
         endDate.setMonth(endDate.getMonth() + 1);
       }
 
-      // Update user's subscription using raw update
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ 
@@ -173,6 +181,11 @@ const Admin = () => {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
   const filteredRequests = paymentRequests.filter(r => 
     r.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -181,62 +194,104 @@ const Admin = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading Admin Panel...</p>
+        </div>
       </div>
     );
   }
 
-  if (!isAdmin) return null;
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Shield className="h-16 w-16 text-destructive mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+          <p className="text-muted-foreground mb-4">You don't have permission to access this page.</p>
+          <Button onClick={() => navigate("/")}>Go to Dashboard</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              <Shield className="h-7 w-7 text-primary" />
-              Admin Dashboard
-            </h1>
-            <p className="text-muted-foreground text-sm">Manage payments and view analytics</p>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      {/* Admin Header */}
+      <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold">Admin Panel</h1>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
+            </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => Promise.all([fetchPaymentRequests(), fetchAnalytics()])}>
-            <RefreshCw className="h-4 w-4 mr-2" />Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/")}>
+              <Home className="h-4 w-4 mr-2" />
+              User View
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => Promise.all([fetchPaymentRequests(), fetchAnalytics()])}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-destructive">
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
+      </header>
 
+      <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         {/* Analytics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          <Card><CardContent className="p-4 text-center">
-            <Users className="h-6 w-6 mx-auto mb-2 text-blue-500" />
-            <p className="text-2xl font-bold">{analytics.totalUsers}</p>
-            <p className="text-xs text-muted-foreground">Total Users</p>
-          </CardContent></Card>
-          <Card><CardContent className="p-4 text-center">
-            <Truck className="h-6 w-6 mx-auto mb-2 text-green-500" />
-            <p className="text-2xl font-bold">{analytics.totalVehicles}</p>
-            <p className="text-xs text-muted-foreground">Vehicles</p>
-          </CardContent></Card>
-          <Card><CardContent className="p-4 text-center">
-            <Calendar className="h-6 w-6 mx-auto mb-2 text-purple-500" />
-            <p className="text-2xl font-bold">{analytics.totalEntries}</p>
-            <p className="text-xs text-muted-foreground">Entries</p>
-          </CardContent></Card>
-          <Card><CardContent className="p-4 text-center">
-            <Clock className="h-6 w-6 mx-auto mb-2 text-amber-500" />
-            <p className="text-2xl font-bold">{analytics.pendingPayments}</p>
-            <p className="text-xs text-muted-foreground">Pending</p>
-          </CardContent></Card>
-          <Card><CardContent className="p-4 text-center">
-            <CheckCircle2 className="h-6 w-6 mx-auto mb-2 text-green-500" />
-            <p className="text-2xl font-bold">{analytics.approvedPayments}</p>
-            <p className="text-xs text-muted-foreground">Approved</p>
-          </CardContent></Card>
-          <Card><CardContent className="p-4 text-center">
-            <TrendingUp className="h-6 w-6 mx-auto mb-2 text-primary" />
-            <p className="text-2xl font-bold">₹{analytics.totalRevenue.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">Revenue</p>
-          </CardContent></Card>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4 text-center">
+              <Users className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+              <p className="text-3xl font-bold">{analytics.totalUsers}</p>
+              <p className="text-xs text-muted-foreground">Total Users</p>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4 text-center">
+              <Truck className="h-8 w-8 mx-auto mb-2 text-green-500" />
+              <p className="text-3xl font-bold">{analytics.totalVehicles}</p>
+              <p className="text-xs text-muted-foreground">Vehicles</p>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4 text-center">
+              <Calendar className="h-8 w-8 mx-auto mb-2 text-purple-500" />
+              <p className="text-3xl font-bold">{analytics.totalEntries}</p>
+              <p className="text-xs text-muted-foreground">Entries</p>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow bg-amber-500/10 border-amber-500/30">
+            <CardContent className="p-4 text-center">
+              <Clock className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+              <p className="text-3xl font-bold text-amber-600">{analytics.pendingPayments}</p>
+              <p className="text-xs text-muted-foreground">Pending</p>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow bg-green-500/10 border-green-500/30">
+            <CardContent className="p-4 text-center">
+              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
+              <p className="text-3xl font-bold text-green-600">{analytics.approvedPayments}</p>
+              <p className="text-xs text-muted-foreground">Approved</p>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow bg-primary/10 border-primary/30">
+            <CardContent className="p-4 text-center">
+              <TrendingUp className="h-8 w-8 mx-auto mb-2 text-primary" />
+              <p className="text-3xl font-bold text-primary">₹{analytics.totalRevenue.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Revenue</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Payment Requests */}
@@ -244,22 +299,32 @@ const Admin = () => {
           <CardHeader>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <CreditCard className="h-6 w-6" />
                   Payment Requests
                 </CardTitle>
-                <CardDescription>Manage subscription payment requests</CardDescription>
+                <CardDescription>Manage subscription payment requests from users</CardDescription>
               </div>
-              <div className="relative w-full md:w-64">
+              <div className="relative w-full md:w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search by email, name, phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+                <Input 
+                  placeholder="Search by email, name, phone..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  className="pl-10" 
+                />
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="pending">
-              <TabsList className="mb-4">
-                <TabsTrigger value="pending">Pending ({paymentRequests.filter(r => r.status === "pending").length})</TabsTrigger>
+              <TabsList className="mb-4 w-full justify-start">
+                <TabsTrigger value="pending" className="gap-2">
+                  Pending
+                  {analytics.pendingPayments > 0 && (
+                    <Badge variant="secondary" className="ml-1">{analytics.pendingPayments}</Badge>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="approved">Approved</TabsTrigger>
                 <TabsTrigger value="rejected">Rejected</TabsTrigger>
                 <TabsTrigger value="all">All</TabsTrigger>
@@ -270,31 +335,58 @@ const Admin = () => {
                   {filteredRequests
                     .filter(r => tab === "all" || r.status === tab)
                     .map(request => (
-                      <div key={request.id} className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                          <div className="space-y-1">
+                      <div key={request.id} className="border rounded-xl p-4 hover:bg-muted/30 transition-colors">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="space-y-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium">{request.user_name || "Unknown"}</span>
+                              <span className="font-semibold text-lg">{request.user_name || "Unknown User"}</span>
                               <Badge variant={request.status === "pending" ? "secondary" : request.status === "approved" ? "default" : "destructive"}>
-                                {request.status}
+                                {request.status.toUpperCase()}
                               </Badge>
-                              <Badge variant="outline">{request.plan_name}</Badge>
-                              <Badge variant="outline" className="text-xs">{request.billing_cycle}</Badge>
                             </div>
-                            <p className="text-sm text-muted-foreground">{request.user_email}</p>
-                            <p className="text-sm text-muted-foreground">📱 {request.phone_number || "No phone"}</p>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span>💰 ₹{request.amount.toLocaleString()}</span>
-                              <span>📅 {format(new Date(request.created_at), "dd MMM yyyy, hh:mm a")}</span>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <Badge variant="outline" className="text-sm">{request.plan_name}</Badge>
+                              <Badge variant="outline" className="text-sm">{request.billing_cycle}</Badge>
+                              <span className="text-lg font-bold text-primary">₹{request.amount.toLocaleString()}</span>
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              <p>📧 {request.user_email}</p>
+                              <p>📱 {request.phone_number || "No phone provided"}</p>
+                              <p>📅 {format(new Date(request.created_at), "dd MMM yyyy, hh:mm a")}</p>
                             </div>
                           </div>
                           {request.status === "pending" && (
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline" onClick={() => handleReject(request)} disabled={processingId === request.id}>
-                                {processingId === request.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><XCircle className="h-4 w-4 mr-1" />Reject</>}
+                            <div className="flex gap-2 md:flex-col">
+                              <Button 
+                                size="sm" 
+                                className="flex-1 bg-green-600 hover:bg-green-700"
+                                onClick={() => handleApprove(request)} 
+                                disabled={processingId === request.id}
+                              >
+                                {processingId === request.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                                    Approve
+                                  </>
+                                )}
                               </Button>
-                              <Button size="sm" onClick={() => handleApprove(request)} disabled={processingId === request.id}>
-                                {processingId === request.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4 mr-1" />Approve</>}
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="flex-1 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                onClick={() => handleReject(request)} 
+                                disabled={processingId === request.id}
+                              >
+                                {processingId === request.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Reject
+                                  </>
+                                )}
                               </Button>
                             </div>
                           )}
@@ -302,18 +394,17 @@ const Admin = () => {
                       </div>
                     ))}
                   {filteredRequests.filter(r => tab === "all" || r.status === tab).length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">No {tab} payment requests</p>
+                    <div className="text-center py-12">
+                      <CreditCard className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                      <p className="text-muted-foreground">No {tab === "all" ? "" : tab} payment requests found</p>
+                    </div>
                   )}
                 </TabsContent>
               ))}
             </Tabs>
           </CardContent>
         </Card>
-
-        <div className="text-center mt-6">
-          <Button variant="ghost" onClick={() => navigate("/")}>← Back to Dashboard</Button>
-        </div>
-      </div>
+      </main>
     </div>
   );
 };

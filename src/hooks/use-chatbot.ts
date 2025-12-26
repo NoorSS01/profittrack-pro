@@ -96,20 +96,28 @@ export function useChatbot() {
     setMessages(prev => [...prev, userMessage]);
 
     try {
+      console.log('Sending message to AI:', content);
+      
       // Parse time period from user query
       const { start, end, label } = parseTimePeriod(content);
+      console.log('Time period:', { start, end, label });
 
       // Get user context data
       const context = await getUserContext(user.id, start, end, label);
+      console.log('User context loaded');
 
       // Build system prompt with context
       const systemPrompt = filterPII(buildSystemPrompt(context));
+      console.log('System prompt built, length:', systemPrompt.length);
 
       // Build conversation history for context
       const history = buildConversationHistory(messages) as GeminiMessage[];
+      console.log('Conversation history:', history.length, 'messages');
 
       // Generate AI response
+      console.log('Calling Gemini API...');
       const response = await generateResponse(systemPrompt, content, history);
+      console.log('AI response received, length:', response.length);
 
       // Add assistant message
       const assistantMessage: Message = {
@@ -121,6 +129,7 @@ export function useChatbot() {
       setMessages(prev => [...prev, assistantMessage]);
 
     } catch (e) {
+      console.error('Chat error:', e);
       const errorMessage = e instanceof Error ? getErrorMessage(e) : 'Something went wrong. Please try again.';
       setError(errorMessage);
       
