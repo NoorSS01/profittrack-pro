@@ -50,15 +50,32 @@ const Auth = () => {
   const handleGoogleAuth = async () => {
     setGoogleLoading(true);
     try {
-      // Get the current origin - works for both localhost and production
-      // For mobile browsers, we need to ensure the redirect URL is correct
-      const currentUrl = window.location.origin;
+      // Build the redirect URL properly for both localhost and production
+      // For Hostinger deployment with /dist/ base path
+      const origin = window.location.origin;
+      const pathname = window.location.pathname;
+      
+      // Determine the correct redirect URL
+      // If we're on /dist/auth or /dist/, redirect back to /dist/
+      // If we're on localhost, redirect to root
+      let redirectUrl = origin;
+      
+      // Check if we're on Hostinger (has /dist/ in path)
+      if (pathname.includes('/dist')) {
+        redirectUrl = `${origin}/dist/`;
+      }
+      
+      console.log("Google Auth - Redirect URL:", redirectUrl);
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: currentUrl,
+          redirectTo: redirectUrl,
           skipBrowserRedirect: false,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
@@ -67,9 +84,10 @@ const Auth = () => {
         throw error;
       }
       
-      // If we get here without redirect, something went wrong
-      if (!data?.url) {
-        throw new Error("Failed to get authentication URL");
+      // The OAuth flow will redirect the browser
+      // If we get here and have a URL, manually redirect (fallback for some mobile browsers)
+      if (data?.url) {
+        window.location.href = data.url;
       }
     } catch (error: any) {
       console.error("Google Auth Error:", error);
