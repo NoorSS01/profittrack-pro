@@ -28,7 +28,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   trial: {
     maxVehicles: 10,
     tripHistoryDays: 365,
-    dashboardMonths: 6,
+    dashboardMonths: 6, // All periods allowed
     aiChatEnabled: true,
     aiChatDailyLimit: 50,
     reportsExport: true,
@@ -37,7 +37,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   basic: {
     maxVehicles: 1,
     tripHistoryDays: 10,
-    dashboardMonths: 1,
+    dashboardMonths: 0, // Only 1 Day and 7 Days (no month views)
     aiChatEnabled: false,
     aiChatDailyLimit: 0,
     reportsExport: false,
@@ -46,7 +46,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   standard: {
     maxVehicles: 5,
     tripHistoryDays: 90,
-    dashboardMonths: 6,
+    dashboardMonths: 1, // Up to 1 Month view
     aiChatEnabled: true,
     aiChatDailyLimit: 30,
     reportsExport: false,
@@ -55,7 +55,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   ultra: {
     maxVehicles: 999,
     tripHistoryDays: 9999,
-    dashboardMonths: 60,
+    dashboardMonths: 6, // All periods including 6 months
     aiChatEnabled: true,
     aiChatDailyLimit: 999,
     reportsExport: true,

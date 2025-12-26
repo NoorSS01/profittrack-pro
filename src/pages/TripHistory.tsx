@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { TripHistorySkeleton } from "@/components/skeletons/TripHistorySkeleton";
 import * as XLSX from "xlsx";
+import { subDays, format, differenceInDays, parseISO } from "date-fns";
 import {
   Table,
   TableBody,
@@ -49,7 +52,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Edit, Trash2, Calendar, TrendingUp, TrendingDown, Filter, X, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Edit, Trash2, Calendar, TrendingUp, TrendingDown, Filter, X, Download, FileSpreadsheet, FileText, Lock, Crown } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -58,7 +62,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { format } from "date-fns";
 import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface DailyEntry {
@@ -97,6 +100,8 @@ export default function TripHistory() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
+  const { plan, limits } = useSubscription();
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<DailyEntry[]>([]);
   const [filteredEntries, setFilteredEntries] = useState<DailyEntry[]>([]);
   const [vehicles, setVehicles] = useState<Array<{ id: string; vehicle_name: string }>>([]);
@@ -125,6 +130,16 @@ export default function TripHistory() {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Calculate the minimum allowed date based on plan
+  const getMinAllowedDate = () => {
+    if (plan === 'trial') return null; // No restriction during trial
+    const today = new Date();
+    return subDays(today, limits.tripHistoryDays);
+  };
+
+  const minAllowedDate = getMinAllowedDate();
+  const isDateRestricted = plan !== 'trial' && plan !== 'ultra' && limits.tripHistoryDays < 9999;
 
   useEffect(() => {
     if (user) {
@@ -155,7 +170,9 @@ export default function TripHistory() {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Build query with date restriction based on plan
+      let query = supabase
         .from("daily_entries")
         .select(`
           *,
@@ -166,6 +183,13 @@ export default function TripHistory() {
         .eq("user_id", user?.id)
         .order("entry_date", { ascending: false })
         .order("created_at", { ascending: false });
+
+      // Apply date restriction for non-trial, non-ultra plans
+      if (minAllowedDate) {
+        query = query.gte("entry_date", format(minAllowedDate, "yyyy-MM-dd"));
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setEntries(data || []);
@@ -415,12 +439,34 @@ export default function TripHistory() {
       {/* Filters Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filters
+            </CardTitle>
+            {isDateRestricted && (
+              <Badge variant="secondary" className="gap-1">
+                <Lock className="h-3 w-3" />
+                Last {limits.tripHistoryDays} days
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
+          {isDateRestricted && (
+            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-amber-600" />
+                <span className="text-sm text-amber-700 dark:text-amber-400">
+                  Your {plan} plan shows last {limits.tripHistoryDays} days of history
+                </span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => navigate('/pricing')} className="gap-1">
+                <Crown className="h-3 w-3" />
+                Upgrade
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="vehicle-filter">Vehicle</Label>

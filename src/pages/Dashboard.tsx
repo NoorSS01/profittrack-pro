@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, Gauge, Calendar, Truck } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Gauge, Calendar, Truck, Lock, Crown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart } from "recharts";
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -12,6 +14,7 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { useHaptic } from "@/hooks/use-haptic";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
+import { cn } from "@/lib/utils";
 
 interface ChartDataPoint {
   date: string;
@@ -35,6 +38,8 @@ const Dashboard = () => {
   const { user } = useAuth();
   const { formatCurrency } = useCurrency();
   const { trigger } = useHaptic();
+  const { plan, limits } = useSubscription();
+  const navigate = useNavigate();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('1day');
   const [periodStats, setPeriodStats] = useState({
     profit: 0,
@@ -302,8 +307,40 @@ const Dashboard = () => {
   };
 
   const handleTimePeriodChange = (value: string) => {
+    // Check if user can access this time period based on plan
+    const monthsRequired = value === '6months' ? 6 : value === '1month' ? 1 : 0;
+    
+    if (monthsRequired > limits.dashboardMonths && plan !== 'trial') {
+      // Show upgrade prompt
+      trigger('error');
+      navigate('/pricing');
+      return;
+    }
+    
     trigger('selection');
     setTimePeriod(value as TimePeriod);
+  };
+
+  // Check if a time period is locked based on plan
+  // Basic: 1 Day, 7 Days only (dashboardMonths = 0)
+  // Standard: 1 Day, 7 Days, 1 Month (dashboardMonths = 1)
+  // Ultra: All periods (dashboardMonths = 6)
+  const isTimePeriodLocked = (period: TimePeriod): boolean => {
+    if (plan === 'trial') return false;
+    if (plan === 'ultra') return false;
+    if (plan === 'expired') return period !== '1day';
+    
+    // Basic plan: only 1day and 7days allowed
+    if (plan === 'basic') {
+      return period === '1month' || period === '6months';
+    }
+    
+    // Standard plan: 1day, 7days, 1month allowed (not 6months)
+    if (plan === 'standard') {
+      return period === '6months';
+    }
+    
+    return false;
   };
 
   return (
@@ -324,10 +361,18 @@ const Dashboard = () => {
             <TabsTrigger value="7days" className="text-sm font-medium">
               7 Days
             </TabsTrigger>
-            <TabsTrigger value="1month" className="text-sm font-medium">
+            <TabsTrigger 
+              value="1month" 
+              className={cn("text-sm font-medium", isTimePeriodLocked('1month') && "opacity-60")}
+            >
+              {isTimePeriodLocked('1month') && <Lock className="h-3 w-3 mr-1" />}
               1 Month
             </TabsTrigger>
-            <TabsTrigger value="6months" className="text-sm font-medium">
+            <TabsTrigger 
+              value="6months" 
+              className={cn("text-sm font-medium", isTimePeriodLocked('6months') && "opacity-60")}
+            >
+              {isTimePeriodLocked('6months') && <Lock className="h-3 w-3 mr-1" />}
               6 Months
             </TabsTrigger>
           </TabsList>

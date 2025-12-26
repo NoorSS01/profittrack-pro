@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Calendar, TrendingUp, Truck, DollarSign } from "lucide-react";
+import { Calendar, TrendingUp, Truck, DollarSign, Lock, Crown } from "lucide-react";
 import { format, subDays, startOfMonth, endOfMonth, startOfYear } from "date-fns";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { ReportsSkeleton } from "@/components/skeletons/ReportsSkeleton";
@@ -25,6 +29,8 @@ interface ExpenseBreakdown {
 const Reports = () => {
   const { user } = useAuth();
   const { formatCurrency } = useCurrency();
+  const { plan, limits } = useSubscription();
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<"week" | "month" | "year">("month");
   const [reportData, setReportData] = useState<ReportData>({
     totalEarnings: 0,
@@ -36,6 +42,32 @@ const Reports = () => {
   const [expenseBreakdown, setExpenseBreakdown] = useState<ExpenseBreakdown[]>([]);
   const [vehicleComparison, setVehicleComparison] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Check if period is locked based on plan
+  // Basic: only week (7 days)
+  // Standard: week and month
+  // Ultra: all periods including year
+  const isPeriodLocked = (p: "week" | "month" | "year"): boolean => {
+    if (plan === 'trial') return false;
+    if (plan === 'ultra') return false;
+    if (plan === 'expired') return p !== 'week';
+    
+    // Basic: only week allowed
+    if (plan === 'basic') return p !== 'week';
+    
+    // Standard: week and month allowed (not year)
+    if (plan === 'standard') return p === 'year';
+    
+    return false;
+  };
+
+  const handlePeriodChange = (value: "week" | "month" | "year") => {
+    if (isPeriodLocked(value)) {
+      navigate('/pricing');
+      return;
+    }
+    setPeriod(value);
+  };
 
   useEffect(() => {
     if (user) {
@@ -248,14 +280,24 @@ const Reports = () => {
           <h1 className="text-3xl lg:text-4xl font-bold text-foreground">Reports</h1>
           <p className="text-muted-foreground mt-1">Analyze your business performance</p>
         </div>
-        <Select value={period} onValueChange={(value: any) => setPeriod(value)}>
+        <Select value={period} onValueChange={(value: any) => handlePeriodChange(value)}>
           <SelectTrigger className="w-[200px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="week">Last 7 Days</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="year">This Year</SelectItem>
+            <SelectItem value="month" disabled={isPeriodLocked('month')}>
+              <span className="flex items-center gap-2">
+                {isPeriodLocked('month') && <Lock className="h-3 w-3" />}
+                This Month
+              </span>
+            </SelectItem>
+            <SelectItem value="year" disabled={isPeriodLocked('year')}>
+              <span className="flex items-center gap-2">
+                {isPeriodLocked('year') && <Lock className="h-3 w-3" />}
+                This Year
+              </span>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>

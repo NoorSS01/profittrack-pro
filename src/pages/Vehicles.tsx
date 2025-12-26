@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -8,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Truck, Plus, Edit, Trash2, User, DollarSign, Gauge } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Truck, Plus, Edit, Trash2, User, DollarSign, Gauge, Lock, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { VehiclesSkeleton } from "@/components/skeletons/VehiclesSkeleton";
@@ -32,10 +35,16 @@ const Vehicles = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
+  const { plan, limits } = useSubscription();
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+
+  // Check if user can add more vehicles
+  const canAddVehicle = plan === 'trial' || vehicles.filter(v => v.is_active).length < limits.maxVehicles;
+  const vehicleCount = vehicles.filter(v => v.is_active).length;
 
   const [formData, setFormData] = useState({
     vehicle_name: "",
@@ -186,6 +195,20 @@ const Vehicles = () => {
     });
   };
 
+  const handleAddVehicleClick = () => {
+    if (!canAddVehicle) {
+      toast({
+        title: "Vehicle Limit Reached",
+        description: `Your ${plan} plan allows ${limits.maxVehicles} vehicle(s). Upgrade to add more.`,
+        variant: "destructive",
+      });
+      navigate('/pricing');
+      return;
+    }
+    resetForm();
+    setDialogOpen(true);
+  };
+
   if (loading) {
     return <VehiclesSkeleton />;
   }
@@ -195,16 +218,44 @@ const Vehicles = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl lg:text-4xl font-bold text-foreground">Vehicles</h1>
-          <p className="text-muted-foreground mt-1">Manage your transport fleet</p>
+          <p className="text-muted-foreground mt-1">
+            Manage your transport fleet
+            {plan !== 'trial' && plan !== 'ultra' && (
+              <span className="ml-2 text-sm">
+                ({vehicleCount}/{limits.maxVehicles} vehicles)
+              </span>
+            )}
+          </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="lg" onClick={resetForm}>
-              <Plus className="h-5 w-5 mr-2" />
-              Add Vehicle
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center gap-2">
+          {!canAddVehicle && (
+            <Badge variant="secondary" className="gap-1">
+              <Lock className="h-3 w-3" />
+              Limit Reached
+            </Badge>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                size="lg" 
+                onClick={handleAddVehicleClick}
+                variant={canAddVehicle ? "default" : "outline"}
+                className={!canAddVehicle ? "opacity-60" : ""}
+              >
+                {canAddVehicle ? (
+                  <>
+                    <Plus className="h-5 w-5 mr-2" />
+                    Add Vehicle
+                  </>
+                ) : (
+                  <>
+                    <Crown className="h-5 w-5 mr-2" />
+                    Upgrade to Add
+                  </>
+                )}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-2xl">
                 {editingVehicle ? "Edit Vehicle" : "Add New Vehicle"}
@@ -331,6 +382,7 @@ const Vehicles = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {vehicles.length === 0 ? (

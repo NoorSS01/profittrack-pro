@@ -12,7 +12,7 @@ import { format, addMonths, addYears } from "date-fns";
 import { 
   Users, CreditCard, TrendingUp, Clock, CheckCircle2, XCircle, 
   Loader2, Search, RefreshCw, Shield, Truck, Calendar, LogOut, 
-  AlertCircle, Eye, Mail, Phone
+  Mail, Phone
 } from "lucide-react";
 import {
   AlertDialog,
