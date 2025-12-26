@@ -355,25 +355,25 @@ const Dashboard = () => {
         <div className="animate-fade-in" style={{ animationDelay: "100ms" }}>
           <Tabs value={timePeriod} onValueChange={handleTimePeriodChange} className="w-full">
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-4 h-11 touch-feedback">
-            <TabsTrigger value="1day" className="text-sm font-medium">
+            <TabsTrigger value="1day" className="text-xs sm:text-sm font-medium">
               1 Day
             </TabsTrigger>
-            <TabsTrigger value="7days" className="text-sm font-medium">
+            <TabsTrigger value="7days" className="text-xs sm:text-sm font-medium">
               7 Days
             </TabsTrigger>
             <TabsTrigger 
               value="1month" 
-              className={cn("text-sm font-medium gap-1", isTimePeriodLocked('1month') && "opacity-70")}
+              className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('1month') && "opacity-70")}
             >
-              {isTimePeriodLocked('1month') && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
-              1 Month
+              {isTimePeriodLocked('1month') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+              1M
             </TabsTrigger>
             <TabsTrigger 
               value="6months" 
-              className={cn("text-sm font-medium gap-1", isTimePeriodLocked('6months') && "opacity-70")}
+              className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('6months') && "opacity-70")}
             >
-              {isTimePeriodLocked('6months') && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
-              6 Months
+              {isTimePeriodLocked('6months') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+              6M
             </TabsTrigger>
           </TabsList>
         </Tabs>

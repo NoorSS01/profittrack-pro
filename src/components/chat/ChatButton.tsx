@@ -20,19 +20,20 @@ export function ChatButton({ onClick, hasUnread = false, locked = false }: ChatB
       size="lg"
       className={cn(
         'fixed bottom-20 right-4 z-50 h-14 w-14 rounded-full shadow-lg',
-        locked 
-          ? 'bg-muted hover:bg-muted/90 text-muted-foreground'
-          : 'bg-primary hover:bg-primary/90 text-primary-foreground',
+        'bg-primary hover:bg-primary/90 text-primary-foreground',
         'transition-all duration-200 hover:scale-105',
         'lg:bottom-6 lg:right-6'
       )}
       aria-label={locked ? "AI Assistant (Locked)" : "Open AI Assistant"}
     >
-      {locked ? (
-        <Lock className="h-6 w-6" />
-      ) : (
-        <MessageCircle className="h-6 w-6" />
+      <MessageCircle className="h-6 w-6" />
+      {/* Lock badge when feature is locked */}
+      {locked && (
+        <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center shadow-md">
+          <Lock className="h-3 w-3 text-white" />
+        </span>
       )}
+      {/* Unread indicator when not locked */}
       {hasUnread && !locked && (
         <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive animate-pulse" />
       )}
