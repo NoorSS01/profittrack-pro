@@ -28,11 +28,10 @@ export function ChatButton({ onClick, hasUnread = false, locked = false }: ChatB
       )}
       aria-label={locked ? "AI Assistant (Locked)" : "Open AI Assistant"}
     >
-      <MessageCircle className="h-6 w-6" />
-      {locked && (
-        <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center">
-          <Lock className="h-3 w-3 text-white" />
-        </span>
+      {locked ? (
+        <Lock className="h-6 w-6" />
+      ) : (
+        <MessageCircle className="h-6 w-6" />
       )}
       {hasUnread && !locked && (
         <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive animate-pulse" />

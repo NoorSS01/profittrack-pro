@@ -363,16 +363,16 @@ const Dashboard = () => {
             </TabsTrigger>
             <TabsTrigger 
               value="1month" 
-              className={cn("text-sm font-medium", isTimePeriodLocked('1month') && "opacity-60")}
+              className={cn("text-sm font-medium gap-1", isTimePeriodLocked('1month') && "opacity-70")}
             >
-              {isTimePeriodLocked('1month') && <Lock className="h-3 w-3 mr-1" />}
+              {isTimePeriodLocked('1month') && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
               1 Month
             </TabsTrigger>
             <TabsTrigger 
               value="6months" 
-              className={cn("text-sm font-medium", isTimePeriodLocked('6months') && "opacity-60")}
+              className={cn("text-sm font-medium gap-1", isTimePeriodLocked('6months') && "opacity-70")}
             >
-              {isTimePeriodLocked('6months') && <Lock className="h-3 w-3 mr-1" />}
+              {isTimePeriodLocked('6months') && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
               6 Months
             </TabsTrigger>
           </TabsList>

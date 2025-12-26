@@ -51,24 +51,31 @@ const Auth = () => {
     setGoogleLoading(true);
     try {
       // Get the current origin - works for both localhost and production
-      const redirectUrl = window.location.origin;
+      // For mobile browsers, we need to ensure the redirect URL is correct
+      const currentUrl = window.location.origin;
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+          redirectTo: currentUrl,
+          skipBrowserRedirect: false,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Google Auth Error:", error);
+        throw error;
+      }
+      
+      // If we get here without redirect, something went wrong
+      if (!data?.url) {
+        throw new Error("Failed to get authentication URL");
+      }
     } catch (error: any) {
+      console.error("Google Auth Error:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to sign in with Google. Please check your Supabase Google OAuth configuration.",
+        title: "Authentication Error",
+        description: error.message || "Failed to sign in with Google. Please try again or use email/password.",
         variant: "destructive",
       });
       setGoogleLoading(false);
