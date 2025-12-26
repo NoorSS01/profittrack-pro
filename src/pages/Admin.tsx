@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, addMonths, addYears } from "date-fns";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { 
   Users, CreditCard, TrendingUp, Clock, CheckCircle2, XCircle, 
   Loader2, Search, RefreshCw, Shield, Truck, Calendar, LogOut, 
-  Mail, Phone
+  Mail, Home
 } from "lucide-react";
 import {
   AlertDialog,
@@ -24,8 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
-// Admin emails - add your email here
+// Admin emails
 const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
 
 interface PaymentRequest {
@@ -52,12 +54,17 @@ interface Analytics {
   totalRevenue: number;
 }
 
+
+type AdminTab = 'dashboard' | 'payments' | 'users';
+
 const Admin = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [analytics, setAnalytics] = useState<Analytics>({
     totalUsers: 0, totalVehicles: 0, totalEntries: 0,
@@ -82,16 +89,21 @@ const Admin = () => {
     }
     
     const isUserAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
-    console.log("Checking admin access for:", user.email, "Is admin:", isUserAdmin);
     
     if (isUserAdmin) {
       setIsAdmin(true);
-      await Promise.all([fetchPaymentRequests(), fetchAnalytics(), fetchAllUsers()]);
+      await refreshAllData();
     } else {
       toast({ title: "Access Denied", description: "You don't have admin access.", variant: "destructive" });
       navigate("/");
     }
     setLoading(false);
+  };
+
+  const refreshAllData = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchPaymentRequests(), fetchAnalytics(), fetchAllUsers()]);
+    setRefreshing(false);
   };
 
   const fetchAllUsers = async () => {
@@ -110,22 +122,15 @@ const Admin = () => {
 
   const fetchPaymentRequests = async () => {
     try {
-      console.log("Fetching payment requests...");
       const { data, error } = await supabase
         .from("payment_requests" as any)
         .select("*")
         .order("created_at", { ascending: false });
       
-      if (error) {
-        console.error("Error fetching payments:", error);
-        throw error;
-      }
-      
-      console.log("Payment requests fetched:", data?.length || 0);
+      if (error) throw error;
       setPaymentRequests((data as unknown as PaymentRequest[]) || []);
     } catch (error: any) {
       console.error("Error fetching payments:", error);
-      toast({ title: "Error", description: "Failed to fetch payment requests: " + error.message, variant: "destructive" });
     }
   };
 
@@ -159,15 +164,10 @@ const Admin = () => {
     }
   };
 
+
   const handleApprove = async (request: PaymentRequest) => {
     setProcessingId(request.id);
     try {
-      console.log("Approving payment request:", request.id);
-      console.log("User ID:", request.user_id);
-      console.log("Plan type:", request.plan_type);
-      console.log("Billing cycle:", request.billing_cycle);
-
-      // Calculate subscription end date
       const startDate = new Date();
       let endDate: Date;
       
@@ -177,9 +177,6 @@ const Admin = () => {
         endDate = addMonths(startDate, 1);
       }
 
-      console.log("Subscription end date:", endDate.toISOString());
-
-      // First update the payment request status
       const { error: paymentError } = await supabase
         .from("payment_requests" as any)
         .update({ 
@@ -189,27 +186,17 @@ const Admin = () => {
         })
         .eq("id", request.id);
       
-      if (paymentError) {
-        console.error("Payment update error:", paymentError);
-        throw new Error(`Failed to update payment: ${paymentError.message}`);
-      }
+      if (paymentError) throw new Error(`Failed to update payment: ${paymentError.message}`);
 
-      console.log("Payment request updated successfully");
-
-      // Now update the user's profile with subscription info
-      // Using 'as any' because subscription fields were added via migration
-      const { data: profileData, error: profileError } = await supabase
+      const { error: profileError } = await supabase
         .from("profiles")
         .update({ 
           subscription_plan: request.plan_type,
           subscription_end_date: endDate.toISOString()
         } as any)
-        .eq("id", request.user_id)
-        .select();
+        .eq("id", request.user_id);
       
       if (profileError) {
-        console.error("Profile update error:", profileError);
-        // Revert payment status if profile update fails
         await supabase
           .from("payment_requests" as any)
           .update({ status: "pending", approved_at: null, approved_by: null })
@@ -217,16 +204,13 @@ const Admin = () => {
         throw new Error(`Failed to update user profile: ${profileError.message}`);
       }
 
-      console.log("Profile updated successfully:", profileData);
-
       toast({ 
         title: "✅ Approved!", 
         description: `${request.user_name || request.user_email}'s ${request.plan_name} plan activated until ${format(endDate, "dd MMM yyyy")}.` 
       });
       
-      await Promise.all([fetchPaymentRequests(), fetchAnalytics(), fetchAllUsers()]);
+      await refreshAllData();
     } catch (error: any) {
-      console.error("Approval error:", error);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setProcessingId(null);
@@ -255,10 +239,6 @@ const Admin = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
-  };
-
-  const openConfirmDialog = (request: PaymentRequest, action: 'approve' | 'reject') => {
-    setConfirmDialog({ open: true, request, action });
   };
 
   const filteredRequests = paymentRequests.filter(r => 
@@ -291,240 +271,328 @@ const Admin = () => {
     );
   }
 
+
+  // Bottom navigation items for mobile
+  const navItems = [
+    { id: 'dashboard' as AdminTab, icon: Home, label: 'Dashboard' },
+    { id: 'payments' as AdminTab, icon: CreditCard, label: 'Payments' },
+    { id: 'users' as AdminTab, icon: Users, label: 'Users' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Admin Header */}
-      <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Shield className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold">Admin Panel</h1>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => Promise.all([fetchPaymentRequests(), fetchAnalytics(), fetchAllUsers()])}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-destructive">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
+      {/* Mobile Header */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-card/95 backdrop-blur-md border-b border-border/50 z-50 flex items-center justify-between px-4">
+        <div className="flex items-center gap-2">
+          <Shield className="h-6 w-6 text-primary" />
+          <h1 className="text-lg font-bold">Admin Panel</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={refreshAllData} disabled={refreshing}>
+            <RefreshCw className={cn("h-5 w-5", refreshing && "animate-spin")} />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-destructive">
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-        {/* Analytics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4 text-center">
-              <Users className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-              <p className="text-3xl font-bold">{analytics.totalUsers}</p>
-              <p className="text-xs text-muted-foreground">Total Users</p>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4 text-center">
-              <Truck className="h-8 w-8 mx-auto mb-2 text-green-500" />
-              <p className="text-3xl font-bold">{analytics.totalVehicles}</p>
-              <p className="text-xs text-muted-foreground">Vehicles</p>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4 text-center">
-              <Calendar className="h-8 w-8 mx-auto mb-2 text-purple-500" />
-              <p className="text-3xl font-bold">{analytics.totalEntries}</p>
-              <p className="text-xs text-muted-foreground">Entries</p>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow bg-amber-500/10 border-amber-500/30">
-            <CardContent className="p-4 text-center">
-              <Clock className="h-8 w-8 mx-auto mb-2 text-amber-500" />
-              <p className="text-3xl font-bold text-amber-600">{analytics.pendingPayments}</p>
-              <p className="text-xs text-muted-foreground">Pending</p>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow bg-green-500/10 border-green-500/30">
-            <CardContent className="p-4 text-center">
-              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
-              <p className="text-3xl font-bold text-green-600">{analytics.approvedPayments}</p>
-              <p className="text-xs text-muted-foreground">Approved</p>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow bg-primary/10 border-primary/30">
-            <CardContent className="p-4 text-center">
-              <TrendingUp className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <p className="text-3xl font-bold text-primary">₹{analytics.totalRevenue.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Revenue</p>
-            </CardContent>
-          </Card>
+      {/* Desktop Header */}
+      <header className="hidden lg:flex sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Shield className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Admin Panel</h1>
+            <p className="text-sm text-muted-foreground">{user?.email}</p>
+          </div>
         </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={refreshAllData} disabled={refreshing}>
+            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+            Refresh
+          </Button>
+          <Button variant="ghost" onClick={handleLogout} className="text-destructive">
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </header>
 
-        {/* Payment Requests */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <CreditCard className="h-6 w-6" />
-                  Payment Requests
-                </CardTitle>
-                <CardDescription>Manage subscription payment requests from users</CardDescription>
-              </div>
-              <div className="relative w-full md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search by email, name, phone..." 
-                  value={searchTerm} 
-                  onChange={(e) => setSearchTerm(e.target.value)} 
-                  className="pl-10" 
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="pending">
-              <TabsList className="mb-4 w-full justify-start">
-                <TabsTrigger value="pending" className="gap-2">
-                  Pending
+      {/* Mobile Bottom Navigation */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card/95 backdrop-blur-md border-t border-border/50 z-50 flex items-center justify-around px-4 pb-safe">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={cn(
+                "flex flex-col items-center justify-center py-2 px-4 rounded-xl transition-all duration-200 min-w-[70px]",
+                isActive 
+                  ? "text-primary bg-primary/10" 
+                  : "text-muted-foreground"
+              )}
+            >
+              <item.icon className={cn("h-5 w-5 mb-1", isActive && "scale-110")} />
+              <span className={cn("text-[10px]", isActive ? "font-semibold" : "font-medium")}>
+                {item.label}
+              </span>
+              {item.id === 'payments' && analytics.pendingPayments > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] text-white flex items-center justify-center">
+                  {analytics.pendingPayments}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Main Content */}
+      <PullToRefresh onRefresh={refreshAllData} className="pt-14 lg:pt-0">
+        <main className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
+          {/* Desktop Tabs */}
+          <div className="hidden lg:block">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as AdminTab)}>
+              <TabsList className="mb-6">
+                <TabsTrigger value="dashboard" className="gap-2">
+                  <Home className="h-4 w-4" />
+                  Dashboard
+                </TabsTrigger>
+                <TabsTrigger value="payments" className="gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Payments
                   {analytics.pendingPayments > 0 && (
-                    <Badge variant="secondary" className="ml-1">{analytics.pendingPayments}</Badge>
+                    <Badge variant="destructive" className="ml-1 h-5 px-1.5">{analytics.pendingPayments}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="approved">Approved</TabsTrigger>
-                <TabsTrigger value="rejected">Rejected</TabsTrigger>
-                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="users" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Users ({allUsers.length})
+                </TabsTrigger>
               </TabsList>
+            </Tabs>
+          </div>
 
-              {["pending", "approved", "rejected", "all"].map(tab => (
-                <TabsContent key={tab} value={tab} className="space-y-3">
-                  {filteredRequests
-                    .filter(r => tab === "all" || r.status === tab)
-                    .map(request => (
-                      <div key={request.id} className="border rounded-xl p-4 hover:bg-muted/30 transition-colors">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-lg">{request.user_name || "Unknown User"}</span>
-                              <Badge variant={request.status === "pending" ? "secondary" : request.status === "approved" ? "default" : "destructive"}>
-                                {request.status.toUpperCase()}
-                              </Badge>
+
+          {/* Dashboard Tab Content */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Analytics Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <Users className="h-7 w-7 mx-auto mb-2 text-blue-500" />
+                    <p className="text-2xl lg:text-3xl font-bold">{analytics.totalUsers}</p>
+                    <p className="text-xs text-muted-foreground">Total Users</p>
+                  </CardContent>
+                </Card>
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <Truck className="h-7 w-7 mx-auto mb-2 text-green-500" />
+                    <p className="text-2xl lg:text-3xl font-bold">{analytics.totalVehicles}</p>
+                    <p className="text-xs text-muted-foreground">Vehicles</p>
+                  </CardContent>
+                </Card>
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <Calendar className="h-7 w-7 mx-auto mb-2 text-purple-500" />
+                    <p className="text-2xl lg:text-3xl font-bold">{analytics.totalEntries}</p>
+                    <p className="text-xs text-muted-foreground">Entries</p>
+                  </CardContent>
+                </Card>
+                <Card className="hover:shadow-md transition-shadow bg-amber-500/10 border-amber-500/30">
+                  <CardContent className="p-4 text-center">
+                    <Clock className="h-7 w-7 mx-auto mb-2 text-amber-500" />
+                    <p className="text-2xl lg:text-3xl font-bold text-amber-600">{analytics.pendingPayments}</p>
+                    <p className="text-xs text-muted-foreground">Pending</p>
+                  </CardContent>
+                </Card>
+                <Card className="hover:shadow-md transition-shadow bg-green-500/10 border-green-500/30">
+                  <CardContent className="p-4 text-center">
+                    <CheckCircle2 className="h-7 w-7 mx-auto mb-2 text-green-500" />
+                    <p className="text-2xl lg:text-3xl font-bold text-green-600">{analytics.approvedPayments}</p>
+                    <p className="text-xs text-muted-foreground">Approved</p>
+                  </CardContent>
+                </Card>
+                <Card className="hover:shadow-md transition-shadow bg-primary/10 border-primary/30">
+                  <CardContent className="p-4 text-center">
+                    <TrendingUp className="h-7 w-7 mx-auto mb-2 text-primary" />
+                    <p className="text-2xl lg:text-3xl font-bold text-primary">₹{analytics.totalRevenue.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Revenue</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-3">
+                  <Button variant="outline" onClick={() => setActiveTab('payments')}>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    View Payments
+                    {analytics.pendingPayments > 0 && (
+                      <Badge variant="destructive" className="ml-2">{analytics.pendingPayments}</Badge>
+                    )}
+                  </Button>
+                  <Button variant="outline" onClick={() => setActiveTab('users')}>
+                    <Users className="h-4 w-4 mr-2" />
+                    View Users
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+
+          {/* Payments Tab Content */}
+          {activeTab === 'payments' && (
+            <div className="space-y-4 animate-fade-in">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <CreditCard className="h-5 w-5" />
+                        Payment Requests
+                      </CardTitle>
+                      <CardDescription className="hidden sm:block">Manage subscription payments</CardDescription>
+                    </div>
+                    <div className="relative w-full sm:w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="Search..." 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                        className="pl-9 h-9" 
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="pending">
+                    <TabsList className="mb-4 w-full justify-start overflow-x-auto">
+                      <TabsTrigger value="pending" className="text-xs sm:text-sm">
+                        Pending {analytics.pendingPayments > 0 && `(${analytics.pendingPayments})`}
+                      </TabsTrigger>
+                      <TabsTrigger value="approved" className="text-xs sm:text-sm">Approved</TabsTrigger>
+                      <TabsTrigger value="rejected" className="text-xs sm:text-sm">Rejected</TabsTrigger>
+                      <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
+                    </TabsList>
+
+                    {["pending", "approved", "rejected", "all"].map(tab => (
+                      <TabsContent key={tab} value={tab} className="space-y-3 mt-0">
+                        {filteredRequests
+                          .filter(r => tab === "all" || r.status === tab)
+                          .map(request => (
+                            <div key={request.id} className="border rounded-xl p-3 sm:p-4 hover:bg-muted/30 transition-colors">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold">{request.user_name || "Unknown"}</span>
+                                    <Badge variant={request.status === "pending" ? "secondary" : request.status === "approved" ? "default" : "destructive"} className="text-[10px]">
+                                      {request.status.toUpperCase()}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline" className="text-xs">{request.plan_name}</Badge>
+                                    <span className="text-sm font-bold text-primary">₹{request.amount.toLocaleString()}</span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground space-y-0.5">
+                                    <p className="flex items-center gap-1.5"><Mail className="h-3 w-3" /> {request.user_email}</p>
+                                    <p className="flex items-center gap-1.5"><Calendar className="h-3 w-3" /> {format(new Date(request.created_at), "dd MMM yyyy")}</p>
+                                  </div>
+                                </div>
+                                {request.status === "pending" && (
+                                  <div className="flex gap-2">
+                                    <Button 
+                                      size="sm" 
+                                      className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 h-8"
+                                      onClick={() => setConfirmDialog({ open: true, request, action: 'approve' })} 
+                                      disabled={processingId === request.id}
+                                    >
+                                      {processingId === request.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4 mr-1" />Approve</>}
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      className="flex-1 sm:flex-none border-destructive text-destructive h-8"
+                                      onClick={() => setConfirmDialog({ open: true, request, action: 'reject' })} 
+                                      disabled={processingId === request.id}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-1" />Reject
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <Badge variant="outline" className="text-sm">{request.plan_name}</Badge>
-                              <Badge variant="outline" className="text-sm capitalize">{request.billing_cycle}</Badge>
-                              <span className="text-lg font-bold text-primary">₹{request.amount.toLocaleString()}</span>
-                            </div>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              <p className="flex items-center gap-2"><Mail className="h-3 w-3" /> {request.user_email}</p>
-                              <p className="flex items-center gap-2"><Phone className="h-3 w-3" /> {request.phone_number || "No phone provided"}</p>
-                              <p className="flex items-center gap-2"><Calendar className="h-3 w-3" /> {format(new Date(request.created_at), "dd MMM yyyy, hh:mm a")}</p>
-                            </div>
+                          ))}
+                        {filteredRequests.filter(r => tab === "all" || r.status === tab).length === 0 && (
+                          <div className="text-center py-8">
+                            <CreditCard className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                            <p className="text-sm text-muted-foreground">No {tab === "all" ? "" : tab} requests</p>
                           </div>
-                          {request.status === "pending" && (
-                            <div className="flex gap-2 md:flex-col">
-                              <Button 
-                                size="sm" 
-                                className="flex-1 bg-green-600 hover:bg-green-700"
-                                onClick={() => openConfirmDialog(request, 'approve')} 
-                                disabled={processingId === request.id}
-                              >
-                                {processingId === request.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <CheckCircle2 className="h-4 w-4 mr-1" />
-                                    Approve
-                                  </>
-                                )}
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                className="flex-1 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                                onClick={() => openConfirmDialog(request, 'reject')} 
-                                disabled={processingId === request.id}
-                              >
-                                {processingId === request.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Reject
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          )}
-                          {request.status === "approved" && (
-                            <div className="text-sm text-green-600 flex items-center gap-1">
-                              <CheckCircle2 className="h-4 w-4" />
-                              Activated
-                            </div>
+                        )}
+                      </TabsContent>
+                    ))}
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+
+          {/* Users Tab Content */}
+          {activeTab === 'users' && (
+            <div className="space-y-4 animate-fade-in">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    All Users ({allUsers.length})
+                  </CardTitle>
+                  <CardDescription className="hidden sm:block">View registered users and subscriptions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {allUsers.map(userItem => (
+                      <div key={userItem.id} className="border rounded-lg p-3 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{userItem.full_name || userItem.email}</p>
+                          <p className="text-xs text-muted-foreground truncate">{userItem.email}</p>
+                          <p className="text-[10px] text-muted-foreground">Joined: {format(new Date(userItem.created_at), "dd MMM yyyy")}</p>
+                        </div>
+                        <div className="text-right ml-3 flex-shrink-0">
+                          {userItem.subscription_plan ? (
+                            <>
+                              <Badge className="capitalize text-xs">{userItem.subscription_plan}</Badge>
+                              {userItem.subscription_end_date && (
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                  {new Date(userItem.subscription_end_date) < new Date() ? 'Expired' : `Exp: ${format(new Date(userItem.subscription_end_date), "dd MMM")}`}
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">Trial</Badge>
                           )}
                         </div>
                       </div>
                     ))}
-                  {filteredRequests.filter(r => tab === "all" || r.status === tab).length === 0 && (
-                    <div className="text-center py-12">
-                      <CreditCard className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                      <p className="text-muted-foreground">No {tab === "all" ? "" : tab} payment requests found</p>
-                    </div>
-                  )}
-                </TabsContent>
-              ))}
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        {/* All Users Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Users className="h-6 w-6" />
-              All Users ({allUsers.length})
-            </CardTitle>
-            <CardDescription>View all registered users and their subscription status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {allUsers.map(userItem => (
-                <div key={userItem.id} className="border rounded-lg p-3 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{userItem.full_name || userItem.email}</p>
-                    <p className="text-sm text-muted-foreground">{userItem.email}</p>
-                    <p className="text-xs text-muted-foreground">Joined: {format(new Date(userItem.created_at), "dd MMM yyyy")}</p>
-                  </div>
-                  <div className="text-right">
-                    {userItem.subscription_plan ? (
-                      <>
-                        <Badge className="capitalize">{userItem.subscription_plan}</Badge>
-                        {userItem.subscription_end_date && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Expires: {format(new Date(userItem.subscription_end_date), "dd MMM yyyy")}
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <Badge variant="secondary">Trial/Free</Badge>
+                    {allUsers.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No users found
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
-              {allUsers.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  No users found
-                </div>
-              )}
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-      </main>
+          )}
+        </main>
+      </PullToRefresh>
 
       {/* Confirmation Dialog */}
       <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>
@@ -540,37 +608,23 @@ const Admin = () => {
             <AlertDialogDescription>
               {confirmDialog.action === 'approve' ? (
                 <>
-                  Are you sure you want to approve this payment request?
-                  <div className="mt-3 p-3 bg-muted rounded-lg text-sm">
-                    <p><strong>User:</strong> {confirmDialog.request?.user_name || confirmDialog.request?.user_email}</p>
-                    <p><strong>Plan:</strong> {confirmDialog.request?.plan_name} ({confirmDialog.request?.billing_cycle})</p>
-                    <p><strong>Amount:</strong> ₹{confirmDialog.request?.amount.toLocaleString()}</p>
+                  Approve payment for <span className="font-semibold">{confirmDialog.request?.user_name || confirmDialog.request?.user_email}</span>?
+                  <div className="mt-2 p-2 bg-muted rounded text-sm">
+                    <p>{confirmDialog.request?.plan_name} • ₹{confirmDialog.request?.amount.toLocaleString()}</p>
                   </div>
-                  <p className="mt-2 text-green-600">This will activate the user's subscription immediately.</p>
                 </>
               ) : (
-                <>
-                  Are you sure you want to reject this payment request?
-                  <div className="mt-3 p-3 bg-muted rounded-lg text-sm">
-                    <p><strong>User:</strong> {confirmDialog.request?.user_name || confirmDialog.request?.user_email}</p>
-                    <p><strong>Plan:</strong> {confirmDialog.request?.plan_name}</p>
-                  </div>
-                  <p className="mt-2 text-destructive">This action cannot be undone.</p>
-                </>
+                <>Reject payment request from <span className="font-semibold">{confirmDialog.request?.user_name || confirmDialog.request?.user_email}</span>?</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className={confirmDialog.action === 'approve' ? "bg-green-600 hover:bg-green-700" : "bg-destructive hover:bg-destructive/90"}
+              className={confirmDialog.action === 'approve' ? "bg-green-600 hover:bg-green-700" : "bg-destructive"}
               onClick={() => {
                 if (confirmDialog.request) {
-                  if (confirmDialog.action === 'approve') {
-                    handleApprove(confirmDialog.request);
-                  } else {
-                    handleReject(confirmDialog.request);
-                  }
+                  confirmDialog.action === 'approve' ? handleApprove(confirmDialog.request) : handleReject(confirmDialog.request);
                 }
               }}
             >

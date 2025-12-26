@@ -43,46 +43,53 @@ export async function generateResponse(
     throw new Error('GEMINI_API_KEY_MISSING');
   }
 
-  // Build the contents array with system instruction approach
-  const contents: GeminiMessage[] = [
-    ...conversationHistory,
-    {
-      role: 'user',
-      parts: [{ text: userMessage }],
-    },
-  ];
+  // Build the contents array - include system prompt as first user message for better compatibility
+  const contents: GeminiMessage[] = [];
+  
+  // Add conversation history
+  if (conversationHistory.length > 0) {
+    contents.push(...conversationHistory);
+  }
+  
+  // Add current user message
+  contents.push({
+    role: 'user',
+    parts: [{ text: userMessage }],
+  });
 
   // Use the v1beta API endpoint
   const apiUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
+
   console.log('Calling Gemini API...');
   console.log('Model:', GEMINI_MODEL);
-  console.log('API Key (first 10 chars):', apiKey.substring(0, 10) + '...');
 
   try {
+    const requestBody = {
+      contents,
+      systemInstruction: {
+        parts: [{ text: systemPrompt }]
+      },
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      },
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+      ],
+    };
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
-        },
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-        ],
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     console.log('Response status:', response.status);
@@ -95,8 +102,6 @@ export async function generateResponse(
       console.error('Failed to parse response:', parseError);
       throw new Error('API_ERROR: Failed to parse response');
     }
-
-    console.log('Response data:', JSON.stringify(data).substring(0, 500));
 
     // Check for error in response body
     if (data.error) {
@@ -164,6 +169,7 @@ export async function generateResponse(
   }
 }
 
+
 /**
  * Get user-friendly error message
  */
@@ -171,7 +177,7 @@ export function getErrorMessage(error: Error): string {
   const messages: Record<string, string> = {
     'GEMINI_API_KEY_MISSING': 'AI features are not configured. Please contact support.',
     'API_KEY_INVALID': 'AI service configuration error. Please contact support.',
-    'API_RATE_LIMITED': 'AI is busy right now. Please try again in a few seconds.',
+    'API_RATE_LIMITED': 'AI is busy right now. Please try again in a moment.',
     'API_QUOTA_EXCEEDED': 'AI service limit reached. Please try again later.',
     'API_INVALID_REQUEST': 'Could not process your request. Please try rephrasing.',
     'MODEL_NOT_FOUND': 'AI service temporarily unavailable. Please try again.',
@@ -186,7 +192,7 @@ export function getErrorMessage(error: Error): string {
   }
 
   if (error.message.startsWith('API_ERROR:')) {
-    return `AI service error. Please try again.`;
+    return 'AI service error. Please try again.';
   }
 
   return 'Something went wrong. Please try again.';
@@ -194,9 +200,9 @@ export function getErrorMessage(error: Error): string {
 
 // Dummy function for backward compatibility
 export function getRemainingRequests(): number {
-  return 100; // Always return high number - let Google handle rate limiting
+  return 100;
 }
 
 export function resetRateLimit(): void {
-  // No-op - we removed client-side rate limiting
+  // No-op
 }
