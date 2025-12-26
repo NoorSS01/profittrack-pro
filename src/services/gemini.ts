@@ -3,9 +3,8 @@
  * Handles communication with Google Gemini API
  */
 
-// Using gemini-2.0-flash - the current stable model
-// API v1beta is required for Gemini models
-const GEMINI_MODEL = 'gemini-2.0-flash';
+// Using gemini-1.5-flash - stable and widely available
+const GEMINI_MODEL = 'gemini-1.5-flash';
 const API_VERSION = 'v1beta';
 
 export interface GeminiMessage {
@@ -44,16 +43,8 @@ export async function generateResponse(
     throw new Error('GEMINI_API_KEY_MISSING');
   }
 
-  // Build the contents array
+  // Build the contents array with system instruction approach
   const contents: GeminiMessage[] = [
-    {
-      role: 'user',
-      parts: [{ text: systemPrompt }],
-    },
-    {
-      role: 'model',
-      parts: [{ text: 'I understand. I will analyze your transport business data and provide personalized insights.' }],
-    },
     ...conversationHistory,
     {
       role: 'user',
@@ -61,7 +52,7 @@ export async function generateResponse(
     },
   ];
 
-  // Use the v1beta API endpoint (required for gemini-1.5-flash)
+  // Use the v1beta API endpoint
   const apiUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
   console.log('Calling Gemini API...');
@@ -76,12 +67,21 @@ export async function generateResponse(
       },
       body: JSON.stringify({
         contents,
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
         generationConfig: {
           temperature: 0.7,
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 1024,
         },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+        ],
       }),
     });
 
@@ -96,7 +96,7 @@ export async function generateResponse(
       throw new Error('API_ERROR: Failed to parse response');
     }
 
-    console.log('Response data:', JSON.stringify(data).substring(0, 200));
+    console.log('Response data:', JSON.stringify(data).substring(0, 500));
 
     // Check for error in response body
     if (data.error) {
@@ -105,11 +105,11 @@ export async function generateResponse(
       const errorMessage = (data.error.message || '').toLowerCase();
       const errorCode = data.error.code;
       
-      if (errorCode === 429 || errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
+      if (errorCode === 429 || errorMessage.includes('quota') || errorMessage.includes('rate limit') || errorMessage.includes('resource exhausted')) {
         throw new Error('API_RATE_LIMITED');
       }
-      if (errorCode === 403 || errorMessage.includes('permission') || errorMessage.includes('denied')) {
-        throw new Error('API_QUOTA_EXCEEDED');
+      if (errorCode === 403 || errorMessage.includes('permission') || errorMessage.includes('denied') || errorMessage.includes('api key not valid')) {
+        throw new Error('API_KEY_INVALID');
       }
       if (errorMessage.includes('api key') || errorMessage.includes('invalid key')) {
         throw new Error('API_KEY_INVALID');
@@ -126,7 +126,7 @@ export async function generateResponse(
       console.error('HTTP Error:', response.status, response.statusText);
       
       if (response.status === 429) throw new Error('API_RATE_LIMITED');
-      if (response.status === 403) throw new Error('API_QUOTA_EXCEEDED');
+      if (response.status === 403) throw new Error('API_KEY_INVALID');
       if (response.status === 404) throw new Error('MODEL_NOT_FOUND');
       if (response.status === 400) throw new Error('API_INVALID_REQUEST');
       
@@ -169,15 +169,15 @@ export async function generateResponse(
  */
 export function getErrorMessage(error: Error): string {
   const messages: Record<string, string> = {
-    'GEMINI_API_KEY_MISSING': 'AI features are not configured. Please add your Gemini API key.',
-    'API_KEY_INVALID': 'Invalid API key. Please check your Gemini API key is correct.',
-    'API_RATE_LIMITED': 'API rate limit reached. Please wait a minute and try again.',
-    'API_QUOTA_EXCEEDED': 'AI quota exceeded. Please check your Google Cloud billing or try again tomorrow.',
-    'API_INVALID_REQUEST': 'Invalid request. Please try rephrasing your question.',
-    'MODEL_NOT_FOUND': 'AI model temporarily unavailable. Please try again in a moment.',
+    'GEMINI_API_KEY_MISSING': 'AI features are not configured. Please contact support.',
+    'API_KEY_INVALID': 'AI service configuration error. Please contact support.',
+    'API_RATE_LIMITED': 'AI is busy right now. Please try again in a few seconds.',
+    'API_QUOTA_EXCEEDED': 'AI service limit reached. Please try again later.',
+    'API_INVALID_REQUEST': 'Could not process your request. Please try rephrasing.',
+    'MODEL_NOT_FOUND': 'AI service temporarily unavailable. Please try again.',
     'NO_RESPONSE': 'Unable to generate a response. Please try again.',
     'EMPTY_RESPONSE': 'Received empty response. Please try again.',
-    'SAFETY_BLOCKED': 'Your request was blocked for safety reasons. Please try a different question.',
+    'SAFETY_BLOCKED': 'Your request could not be processed. Please try a different question.',
     'NETWORK_ERROR': 'Connection error. Please check your internet and try again.',
   };
 
@@ -186,7 +186,7 @@ export function getErrorMessage(error: Error): string {
   }
 
   if (error.message.startsWith('API_ERROR:')) {
-    return `AI service error: ${error.message.replace('API_ERROR: ', '')}`;
+    return `AI service error. Please try again.`;
   }
 
   return 'Something went wrong. Please try again.';

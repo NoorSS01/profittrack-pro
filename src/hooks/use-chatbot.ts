@@ -12,11 +12,16 @@ import type { Message } from '@/components/chat/MessageList';
 import type { GeminiMessage } from '@/services/gemini';
 
 const STORAGE_KEY = 'profittrack_chat_session';
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 2000; // 2 seconds
 
 interface ChatSession {
   messages: Message[];
   lastUpdatedAt: string;
 }
+
+// Helper function to delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export function useChatbot() {
   const { user } = useAuth();
@@ -95,49 +100,70 @@ export function useChatbot() {
     };
     setMessages(prev => [...prev, userMessage]);
 
-    try {
-      console.log('Sending message to AI:', content);
-      
-      // Parse time period from user query
-      const { start, end, label } = parseTimePeriod(content);
-      console.log('Time period:', { start, end, label });
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`Retry attempt ${attempt}/${MAX_RETRIES}...`);
+          await delay(RETRY_DELAY * attempt); // Exponential backoff
+        }
 
-      // Get user context data
-      const context = await getUserContext(user.id, start, end, label);
-      console.log('User context loaded');
+        console.log('Sending message to AI:', content);
+        
+        // Parse time period from user query
+        const { start, end, label } = parseTimePeriod(content);
+        console.log('Time period:', { start, end, label });
 
-      // Build system prompt with context
-      const systemPrompt = filterPII(buildSystemPrompt(context));
-      console.log('System prompt built, length:', systemPrompt.length);
+        // Get user context data
+        const context = await getUserContext(user.id, start, end, label);
+        console.log('User context loaded, hasData:', context.hasData);
 
-      // Build conversation history for context
-      const history = buildConversationHistory(messages) as GeminiMessage[];
-      console.log('Conversation history:', history.length, 'messages');
+        // Build system prompt with context
+        const systemPrompt = filterPII(buildSystemPrompt(context));
+        console.log('System prompt built, length:', systemPrompt.length);
 
-      // Generate AI response
-      console.log('Calling Gemini API...');
-      const response = await generateResponse(systemPrompt, content, history);
-      console.log('AI response received, length:', response.length);
+        // Build conversation history for context (limit to last 6 messages)
+        const recentMessages = messages.slice(-6);
+        const history = buildConversationHistory(recentMessages) as GeminiMessage[];
+        console.log('Conversation history:', history.length, 'messages');
 
-      // Add assistant message
-      const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: response,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+        // Generate AI response
+        console.log('Calling Gemini API...');
+        const response = await generateResponse(systemPrompt, content, history);
+        console.log('AI response received, length:', response.length);
 
-    } catch (e) {
-      console.error('Chat error:', e);
-      const errorMessage = e instanceof Error ? getErrorMessage(e) : 'Something went wrong. Please try again.';
-      setError(errorMessage);
-      
-      // Remove the user message if we failed to get a response
-      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
-    } finally {
-      setIsLoading(false);
+        // Add assistant message
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: response,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        setIsLoading(false);
+        return; // Success, exit the function
+
+      } catch (e) {
+        console.error(`Chat error (attempt ${attempt + 1}):`, e);
+        lastError = e instanceof Error ? e : new Error('Unknown error');
+        
+        // Don't retry for certain errors
+        if (lastError.message === 'GEMINI_API_KEY_MISSING' || 
+            lastError.message === 'API_KEY_INVALID' ||
+            lastError.message === 'SAFETY_BLOCKED') {
+          break;
+        }
+      }
     }
+
+    // All retries failed
+    const errorMessage = lastError ? getErrorMessage(lastError) : 'Something went wrong. Please try again.';
+    setError(errorMessage);
+    
+    // Remove the user message if we failed to get a response
+    setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+    setIsLoading(false);
   }, [user, isLoading, messages]);
 
   const clearChat = useCallback(() => {
