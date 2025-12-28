@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Settings, Crown, LogOut, CreditCard, Shield } from "lucide-react";
+import { User, Settings, Crown, LogOut, CreditCard, Shield } from "lucide-react";
 
 // Admin emails list
 const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
@@ -74,7 +74,7 @@ export const UserAccountMenu = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
+        <DropdownMenuLabel className="font-normal cursor-pointer hover:bg-muted/50 rounded-sm -mx-1 px-1" onClick={() => { setOpen(false); navigate("/account"); }}>
           <div className="flex flex-col space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium leading-none truncate max-w-[180px]">
@@ -87,9 +87,15 @@ export const UserAccountMenu = () => {
                 Free trial • {trialDaysLeft} days remaining
               </p>
             )}
+            <p className="text-xs text-primary">View Account →</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        
+        <DropdownMenuItem onClick={() => { setOpen(false); navigate("/account"); }}>
+          <User className="mr-2 h-4 w-4" />
+          <span>My Account</span>
+        </DropdownMenuItem>
         
         <DropdownMenuItem onClick={() => { setOpen(false); navigate("/settings"); }}>
           <Settings className="mr-2 h-4 w-4" />

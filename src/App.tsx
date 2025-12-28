@@ -19,6 +19,7 @@ import TripHistory from "./pages/TripHistory";
 import Settings from "./pages/Settings";
 import Pricing from "./pages/Pricing";
 import Admin from "./pages/Admin";
+import Account from "./pages/Account";
 
 const queryClient = new QueryClient();
 
@@ -111,6 +112,18 @@ const App = () => (
                       <SubscriptionGuard>
                         <Layout>
                           <Settings />
+                        </Layout>
+                      </SubscriptionGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/account"
+                  element={
+                    <ProtectedRoute>
+                      <SubscriptionGuard>
+                        <Layout>
+                          <Account />
                         </Layout>
                       </SubscriptionGuard>
                     </ProtectedRoute>
