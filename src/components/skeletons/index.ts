@@ -4,3 +4,4 @@ export { VehiclesSkeleton } from "./VehiclesSkeleton";
 export { ReportsSkeleton } from "./ReportsSkeleton";
 export { SettingsSkeleton } from "./SettingsSkeleton";
 export { DailyEntrySkeleton } from "./DailyEntrySkeleton";
+export { AccountSkeleton } from "./AccountSkeleton";

@@ -10,6 +10,7 @@ import { SubscriptionProvider } from "./contexts/SubscriptionContext";
 import { Layout } from "./components/Layout";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { ChatProvider } from "./contexts/ChatContext";
+import { ScrollToTop } from "./components/ScrollToTop";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Vehicles from "./pages/Vehicles";
@@ -20,6 +21,7 @@ import Settings from "./pages/Settings";
 import Pricing from "./pages/Pricing";
 import Admin from "./pages/Admin";
 import Account from "./pages/Account";
+import Legal from "./pages/Legal";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +35,7 @@ const App = () => (
         <AuthProvider>
           <SubscriptionProvider>
             <ChatProvider>
+              <ScrollToTop />
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/pricing" element={
@@ -124,6 +127,18 @@ const App = () => (
                       <SubscriptionGuard>
                         <Layout>
                           <Account />
+                        </Layout>
+                      </SubscriptionGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/legal/:page"
+                  element={
+                    <ProtectedRoute>
+                      <SubscriptionGuard>
+                        <Layout>
+                          <Legal />
                         </Layout>
                       </SubscriptionGuard>
                     </ProtectedRoute>

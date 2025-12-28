@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings as SettingsIcon, DollarSign, CalendarDays } from "lucide-react";
+import { Settings as SettingsIcon, DollarSign, CalendarDays, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { SettingsSkeleton } from "@/components/skeletons/SettingsSkeleton";
@@ -15,6 +16,7 @@ const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { currency, setCurrency } = useCurrency();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [missingEntryMode, setMissingEntryMode] = useState<"daily" | "bulk">("daily");
@@ -111,9 +113,19 @@ const Settings = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl lg:text-4xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your business preferences</p>
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9"
+          onClick={() => navigate("/account")}
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Settings</h1>
+          <p className="text-muted-foreground text-sm">Manage your business preferences</p>
+        </div>
       </div>
 
       <Card>

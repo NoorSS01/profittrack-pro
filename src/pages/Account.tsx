@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
-import { useSubscription, PLAN_PRICES } from "@/contexts/SubscriptionContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { AccountSkeleton } from "@/components/skeletons/AccountSkeleton";
 import {
   User,
   Mail,
@@ -32,6 +33,9 @@ import {
   X,
   Loader2,
   Sparkles,
+  Phone,
+  Info,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -74,10 +78,14 @@ const Account = () => {
     full_name: "",
     business_name: "",
     contact_email: "",
+    phone_number: "",
   });
   const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [savingPhone, setSavingPhone] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
@@ -101,11 +109,13 @@ const Account = () => {
 
       if (profileData) {
         setProfile({
-          full_name: profileData.full_name || "",
+          full_name: (profileData as any).full_name || "",
           business_name: profileData.business_name || "",
           contact_email: profileData.contact_email || user?.email || "",
+          phone_number: (profileData as any).phone_number || "",
         });
-        setEditName(profileData.full_name || "");
+        setEditName((profileData as any).full_name || "");
+        setEditPhone((profileData as any).phone_number || "");
       }
 
       // Fetch stats
@@ -154,6 +164,37 @@ const Account = () => {
     }
   };
 
+  const handleSavePhone = async () => {
+    // Validate phone number (10 digits only)
+    const phoneDigits = editPhone.replace(/\D/g, '');
+    if (phoneDigits.length !== 10) {
+      toast({ 
+        title: "Invalid Phone Number", 
+        description: "Please enter a valid 10-digit mobile number.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    setSavingPhone(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ phone_number: phoneDigits } as any)
+        .eq("id", user?.id);
+
+      if (error) throw error;
+
+      setProfile(prev => ({ ...prev, phone_number: phoneDigits }));
+      setIsEditingPhone(false);
+      toast({ title: "Phone updated", description: "Your phone number has been saved." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -194,12 +235,13 @@ const Account = () => {
     return 0;
   };
 
+  const formatPhoneDisplay = (phone: string) => {
+    if (!phone) return "Add phone number";
+    return `+91 ${phone.slice(0, 5)} ${phone.slice(5)}`;
+  };
+
   if (loading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <AccountSkeleton />;
   }
 
   return (
@@ -226,7 +268,8 @@ const Account = () => {
                 </AvatarFallback>
               </Avatar>
               
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 space-y-3">
+                {/* Name */}
                 {isEditingName ? (
                   <div className="flex items-center gap-2">
                     <Input
@@ -254,13 +297,50 @@ const Account = () => {
                   </div>
                 )}
                 
-                <p className="text-sm text-muted-foreground truncate flex items-center gap-1.5 mt-1">
+                {/* Email */}
+                <p className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
                   <Mail className="h-3.5 w-3.5" />
                   {user?.email}
                 </p>
                 
+                {/* Phone */}
+                {isEditingPhone ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 flex-1">
+                      <span className="text-sm text-muted-foreground">+91</span>
+                      <Input
+                        value={editPhone}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          setEditPhone(value);
+                        }}
+                        placeholder="10-digit number"
+                        className="h-9"
+                        maxLength={10}
+                        autoFocus
+                      />
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={handleSavePhone} disabled={savingPhone}>
+                      {savingPhone ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-500" />}
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => { setIsEditingPhone(false); setEditPhone(profile.phone_number); }}>
+                      <X className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5" />
+                      {formatPhoneDisplay(profile.phone_number)}
+                    </p>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setIsEditingPhone(true)}>
+                      <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
+                
                 {profile.business_name && (
-                  <p className="text-sm text-muted-foreground truncate mt-0.5">
+                  <p className="text-sm text-muted-foreground truncate">
                     {profile.business_name}
                   </p>
                 )}
@@ -416,6 +496,46 @@ const Account = () => {
                 <LogOut className="h-5 w-5" />
                 Log Out
               </span>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Legal & Support */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-primary" />
+              Help & Legal
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <Button variant="ghost" className="w-full justify-between h-10 px-3 text-sm" onClick={() => navigate("/legal/about")}>
+              <span>About Us</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button variant="ghost" className="w-full justify-between h-10 px-3 text-sm" onClick={() => navigate("/legal/contact")}>
+              <span>Contact & Support</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button variant="ghost" className="w-full justify-between h-10 px-3 text-sm" onClick={() => navigate("/legal/privacy")}>
+              <span>Privacy Policy</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button variant="ghost" className="w-full justify-between h-10 px-3 text-sm" onClick={() => navigate("/legal/terms")}>
+              <span>Terms & Conditions</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button variant="ghost" className="w-full justify-between h-10 px-3 text-sm" onClick={() => navigate("/legal/refund")}>
+              <span>Refund & Cancellation</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button variant="ghost" className="w-full justify-between h-10 px-3 text-sm" onClick={() => navigate("/legal/disclaimer")}>
+              <span>Disclaimer</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button variant="ghost" className="w-full justify-between h-10 px-3 text-sm" onClick={() => navigate("/legal/cookies")}>
+              <span>Cookie Policy</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </Button>
           </CardContent>
         </Card>
