@@ -27,10 +27,10 @@ export function ChatButton({ onClick, hasUnread = false, locked = false }: ChatB
       aria-label={locked ? "AI Assistant (Locked)" : "Open AI Assistant"}
     >
       <MessageCircle className="h-6 w-6" />
-      {/* Lock badge when feature is locked */}
+      {/* Lock badge when feature is locked - consistent with Dashboard lock icons */}
       {locked && (
-        <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center shadow-md">
-          <Lock className="h-3 w-3 text-white" />
+        <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-muted/90 border border-border flex items-center justify-center shadow-md">
+          <Lock className="h-3 w-3 text-muted-foreground" />
         </span>
       )}
       {/* Unread indicator when not locked */}

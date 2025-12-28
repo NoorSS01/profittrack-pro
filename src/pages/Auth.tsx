@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,33 +37,171 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Handle OAuth callback and check for existing session
   useEffect(() => {
-    if (user) {
+    const handleAuthCallback = async () => {
+      console.log("Auth callback - checking session...");
+      console.log("Current URL:", window.location.href);
+      console.log("Hash:", window.location.hash);
+      console.log("Search:", window.location.search);
+      
+      // Check if we have hash params (OAuth callback) - handle both # and #/ formats
+      const hash = window.location.hash;
+      let hashParams: URLSearchParams;
+      
+      if (hash.startsWith('#/')) {
+        // Handle hash router format: #/access_token=...
+        hashParams = new URLSearchParams(hash.substring(2));
+      } else if (hash.startsWith('#')) {
+        // Handle standard format: #access_token=...
+        hashParams = new URLSearchParams(hash.substring(1));
+      } else {
+        hashParams = new URLSearchParams('');
+      }
+      
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const errorFromHash = hashParams.get('error');
+      const errorDescFromHash = hashParams.get('error_description');
+      
+      // Also check URL params for error (query string)
+      const error = searchParams.get('error') || errorFromHash;
+      const errorDescription = searchParams.get('error_description') || errorDescFromHash;
+      
+      console.log("Access token found:", !!accessToken);
+      console.log("Refresh token found:", !!refreshToken);
+      
+      if (error) {
+        console.error("OAuth Error:", error, errorDescription);
+        toast({
+          title: "Authentication Failed",
+          description: errorDescription || "Failed to sign in with Google. Please try again.",
+          variant: "destructive",
+        });
+        // Clear the URL
+        window.history.replaceState(null, '', window.location.pathname);
+        setCheckingSession(false);
+        return;
+      }
+
+      if (accessToken && refreshToken) {
+        // We have tokens from OAuth callback, set the session
+        console.log("Setting session with tokens...");
+        try {
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          
+          if (sessionError) {
+            console.error("Session Error:", sessionError);
+            toast({
+              title: "Session Error",
+              description: sessionError.message || "Failed to establish session. Please try again.",
+              variant: "destructive",
+            });
+          } else if (data.session) {
+            console.log("Session established successfully!");
+            // Clear the hash from URL
+            window.history.replaceState(null, '', window.location.pathname);
+            navigate("/");
+            return;
+          }
+        } catch (err) {
+          console.error("Auth callback error:", err);
+          toast({
+            title: "Error",
+            description: "An unexpected error occurred. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // No tokens in URL, check if there's an existing session
+        console.log("No tokens in URL, checking existing session...");
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            console.log("Existing session found, redirecting...");
+            navigate("/");
+            return;
+          }
+        } catch (err) {
+          console.error("Error checking session:", err);
+        }
+      }
+      
+      setCheckingSession(false);
+    };
+
+    handleAuthCallback();
+  }, [searchParams, navigate, toast]);
+
+  useEffect(() => {
+    if (user && !checkingSession) {
       navigate("/");
     }
-  }, [user, navigate]);
+  }, [user, navigate, checkingSession]);
 
   const handleGoogleAuth = async () => {
     setGoogleLoading(true);
     try {
-      // Simple redirect URL - just use the origin
-      // Supabase will handle the redirect properly
-      const redirectUrl = window.location.origin + (window.location.pathname.includes('/dist') ? '/dist/' : '/');
+      // Build the redirect URL carefully for both desktop and mobile
+      const origin = window.location.origin;
+      const pathname = window.location.pathname;
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Determine the correct redirect URL
+      let redirectUrl = origin;
+      
+      // If deployed to a subdirectory (like /dist/), include it
+      if (pathname.includes('/dist')) {
+        redirectUrl = `${origin}/dist/`;
+      } else {
+        redirectUrl = `${origin}/`;
+      }
+      
+      console.log("Google Auth - Starting OAuth flow");
+      console.log("Origin:", origin);
+      console.log("Pathname:", pathname);
+      console.log("Redirect URL:", redirectUrl);
+      console.log("User Agent:", navigator.userAgent);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: redirectUrl,
+          skipBrowserRedirect: false,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
       if (error) {
+        console.error("Google OAuth Error:", error);
         throw error;
       }
+      
+      console.log("OAuth initiated, URL:", data?.url);
+      
+      // The browser should redirect, but if it doesn't after a few seconds, show error
+      setTimeout(() => {
+        if (googleLoading) {
+          setGoogleLoading(false);
+          toast({
+            title: "Redirect Issue",
+            description: "Please try again or use email/password to sign in.",
+            variant: "destructive",
+          });
+        }
+      }, 10000);
+      
     } catch (error: any) {
       console.error("Google Auth Error:", error);
       toast({
@@ -120,6 +258,18 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  // Show loading while checking session from OAuth callback
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
