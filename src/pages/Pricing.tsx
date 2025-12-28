@@ -9,7 +9,7 @@ import { useSubscription, PLAN_PRICES } from "@/contexts/SubscriptionContext";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, X, Crown, Zap, Star, Truck, Clock, FileText, Bot, ChevronLeft, ChevronRight, Loader2, CheckCircle2 } from "lucide-react";
+import { Check, X, Crown, Zap, Star, Truck, Clock, FileText, Bot, ChevronLeft, ChevronRight, Loader2, CheckCircle2, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Accordion,
@@ -41,6 +41,8 @@ const Pricing = () => {
   const [userName, setUserName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSubmitted, setPaymentSubmitted] = useState(false);
+  const [isWaitingForPayment, setIsWaitingForPayment] = useState(false);
+  const waitingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -53,8 +55,41 @@ const Pricing = () => {
     setSelectedPlan({ name: planName, id: planId, price });
     setShowPaymentDialog(true);
     setPaymentSubmitted(false);
+    setIsWaitingForPayment(true);
+    
+    // Open UPI payment link
     const upiLink = `upi://pay?pa=${UPI_ID}&pn=TransportPro&am=${price}&cu=INR&tn=${planName}%20Plan`;
     window.open(upiLink, '_blank');
+    
+    // Clear any existing timer
+    if (waitingTimerRef.current) {
+      clearTimeout(waitingTimerRef.current);
+    }
+    
+    // After 13 seconds, show the "I've Paid" form
+    waitingTimerRef.current = setTimeout(() => {
+      setIsWaitingForPayment(false);
+    }, 13000);
+  };
+
+  // Cleanup timer on unmount or dialog close
+  useEffect(() => {
+    return () => {
+      if (waitingTimerRef.current) {
+        clearTimeout(waitingTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      // Clear timer when dialog is closed
+      if (waitingTimerRef.current) {
+        clearTimeout(waitingTimerRef.current);
+      }
+      setIsWaitingForPayment(false);
+    }
+    setShowPaymentDialog(open);
   };
 
   const handlePaymentConfirmation = async () => {
@@ -211,27 +246,108 @@ const Pricing = () => {
         <div className="text-center text-xs text-muted-foreground mb-4 p-3 bg-muted/30 rounded-lg"><p>💳 Secure UPI Payment • Instant Processing • 24hr Activation</p></div>
         {plan !== "expired" && <div className="text-center"><Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back to Dashboard</Button></div>}
       </div>
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+      <Dialog open={showPaymentDialog} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">{paymentSubmitted ? <><CheckCircle2 className="h-6 w-6 text-green-500" />Payment Request Submitted</> : <>💳 Complete Your Payment</>}</DialogTitle>
-            <DialogDescription>{paymentSubmitted ? "Our team will verify and activate your plan within 24 hours." : `Pay ₹${selectedPlan?.price.toLocaleString()} for ${selectedPlan?.name} plan (${billingCycle})`}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              {paymentSubmitted ? (
+                <><CheckCircle2 className="h-6 w-6 text-green-500" />Payment Request Submitted</>
+              ) : isWaitingForPayment ? (
+                <>💳 Complete Payment in UPI App</>
+              ) : (
+                <>💳 Complete Your Payment</>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {paymentSubmitted 
+                ? "Our team will verify and activate your plan within 24 hours." 
+                : isWaitingForPayment 
+                  ? `Pay ₹${selectedPlan?.price.toLocaleString()} for ${selectedPlan?.name} plan`
+                  : `Pay ₹${selectedPlan?.price.toLocaleString()} for ${selectedPlan?.name} plan (${billingCycle})`
+              }
+            </DialogDescription>
           </DialogHeader>
+          
+          {/* Payment Submitted Success State */}
           {paymentSubmitted ? (
             <div className="space-y-4 py-4">
-              <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-lg text-center"><CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-2" /><p className="text-sm text-green-700 dark:text-green-400 font-medium">Thank you for your payment!</p><p className="text-xs text-muted-foreground mt-1">You'll receive confirmation once activated.</p></div>
+              <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-lg text-center">
+                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-2" />
+                <p className="text-sm text-green-700 dark:text-green-400 font-medium">Thank you for your payment!</p>
+                <p className="text-xs text-muted-foreground mt-1">You'll receive confirmation once activated.</p>
+              </div>
               <Button className="w-full" onClick={() => setShowPaymentDialog(false)}>Done</Button>
             </div>
+          ) : isWaitingForPayment ? (
+            /* Waiting for Payment Animation */
+            <div className="space-y-6 py-6">
+              <div className="flex flex-col items-center justify-center">
+                {/* Animated Phone with UPI */}
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center animate-pulse">
+                    <Smartphone className="h-10 w-10 text-primary" />
+                  </div>
+                  {/* Pulsing ring animation */}
+                  <div className="absolute inset-0 rounded-2xl border-2 border-primary/30 animate-ping" style={{ animationDuration: '2s' }} />
+                </div>
+                
+                <div className="mt-6 text-center space-y-2">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <p className="text-base font-medium">Waiting for Payment...</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Complete the payment in your UPI app</p>
+                </div>
+                
+                {/* UPI ID Display */}
+                <div className="mt-4 bg-muted/50 px-4 py-2 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Pay to UPI ID:</p>
+                  <p className="font-mono text-sm font-medium">{UPI_ID}</p>
+                </div>
+                
+                {/* Amount Display */}
+                <div className="mt-3 text-center">
+                  <p className="text-2xl font-bold text-primary">₹{selectedPlan?.price.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{selectedPlan?.name} Plan • {billingCycle}</p>
+                </div>
+              </div>
+              
+              {/* Skip waiting button */}
+              <Button 
+                variant="ghost" 
+                className="w-full text-muted-foreground" 
+                onClick={() => setIsWaitingForPayment(false)}
+              >
+                Already paid? Click here
+              </Button>
+            </div>
           ) : (
+            /* I've Paid Form */
             <div className="space-y-4 py-2">
-              <div className="bg-muted/50 p-3 rounded-lg text-sm"><p className="font-medium mb-1">Payment Instructions:</p><ol className="list-decimal list-inside space-y-1 text-muted-foreground text-xs"><li>UPI app opened with amount pre-filled</li><li>Pay to: <span className="font-mono text-foreground">{UPI_ID}</span></li><li>Fill details below and click "I've Paid"</li></ol></div>
+              <div className="bg-muted/50 p-3 rounded-lg text-sm">
+                <p className="font-medium mb-1">Payment Instructions:</p>
+                <ol className="list-decimal list-inside space-y-1 text-muted-foreground text-xs">
+                  <li>UPI app opened with amount pre-filled</li>
+                  <li>Pay to: <span className="font-mono text-foreground">{UPI_ID}</span></li>
+                  <li>Fill details below and click "I've Paid"</li>
+                </ol>
+              </div>
               <div className="space-y-3">
-                <div className="space-y-1.5"><Label htmlFor="name" className="text-sm">Your Name</Label><Input id="name" placeholder="Enter your name" value={userName} onChange={(e) => setUserName(e.target.value)} /></div>
-                <div className="space-y-1.5"><Label htmlFor="phone" className="text-sm">Phone Number *</Label><Input id="phone" type="tel" placeholder="Enter phone number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} maxLength={10} /><p className="text-xs text-muted-foreground">For payment verification</p></div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-sm">Your Name</Label>
+                  <Input id="name" placeholder="Enter your name" value={userName} onChange={(e) => setUserName(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="phone" className="text-sm">Phone Number *</Label>
+                  <Input id="phone" type="tel" placeholder="Enter phone number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} maxLength={10} />
+                  <p className="text-xs text-muted-foreground">For payment verification</p>
+                </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" className="flex-1" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
-                <Button className="flex-1" onClick={handlePaymentConfirmation} disabled={isSubmitting}>{isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : "I've Paid"}</Button>
+                <Button className="flex-1" onClick={handlePaymentConfirmation} disabled={isSubmitting}>
+                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : "I've Paid"}
+                </Button>
               </div>
             </div>
           )}
