@@ -54,7 +54,7 @@ const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
 export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { limits, plan } = useSubscription();
+  const { limits, plan, isLoading: subscriptionLoading } = useSubscription();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -62,6 +62,7 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
   const [missingDates, setMissingDates] = useState<string[]>([]);
   const [formEntries, setFormEntries] = useState<MissingEntryForm[]>([]);
   const [autoFilledCount, setAutoFilledCount] = useState(0);
+  const [hasChecked, setHasChecked] = useState(false);
   
   // Entry mode
   const [entryMode, setEntryMode] = useState<"daily" | "bulk">("daily");
@@ -75,7 +76,19 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
   // Get max fillable days based on plan (admin gets unlimited)
   const getMaxFillableDays = () => {
     if (isAdmin) return 365; // Admin can fill up to 1 year back
-    return limits.missedEntryDays || 7;
+    // Ensure we have valid limits loaded
+    const maxDays = limits?.missedEntryDays;
+    if (typeof maxDays !== 'number' || maxDays <= 0) {
+      // Default fallback based on plan if limits not loaded
+      switch (plan) {
+        case 'basic': return 3;
+        case 'standard': return 7;
+        case 'ultra': return 30;
+        case 'trial': return 15;
+        default: return 0; // expired
+      }
+    }
+    return maxDays;
   };
 
   useEffect(() => {
@@ -83,14 +96,24 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
     if (savedMode) {
       setEntryMode(savedMode);
     }
-    
-    if (user) {
+  }, []);
+
+  // Wait for subscription to load before checking missing entries
+  useEffect(() => {
+    // Only run once when user is available AND subscription is loaded
+    if (user && !subscriptionLoading && !hasChecked) {
+      setHasChecked(true);
       checkMissingEntries();
     }
-  }, [user]);
+  }, [user, subscriptionLoading, hasChecked]);
 
   const checkMissingEntries = async () => {
     setLoading(true);
+    
+    // Get the max fillable days based on current plan
+    const maxFillableDays = getMaxFillableDays();
+    console.log(`[MissingEntries] Plan: ${plan}, Max fillable days: ${maxFillableDays}, isAdmin: ${isAdmin}`);
+    
     try {
       const { data: vehiclesData, error: vehiclesError } = await supabase
         .from("vehicles")
@@ -152,14 +175,18 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
         return;
       }
 
-      const maxFillableDays = getMaxFillableDays();
+      // Use the maxFillableDays calculated at the start of this function
       const fillableCutoff = subDays(today, maxFillableDays);
+      console.log(`[MissingEntries] Fillable cutoff date: ${format(fillableCutoff, "yyyy-MM-dd")}, Total missing: ${allMissing.length}`);
+      
       const fillableDates = allMissing.filter(date => 
         isAfter(parseISO(date), fillableCutoff) || format(fillableCutoff, "yyyy-MM-dd") === date
       );
       const autoZeroDates = allMissing.filter(date => 
         isBefore(parseISO(date), fillableCutoff)
       );
+      
+      console.log(`[MissingEntries] Fillable dates: ${fillableDates.length}, Auto-zero dates: ${autoZeroDates.length}`);
 
       if (autoZeroDates.length > 0 && vehiclesData.length > 0) {
         const defaultVehicle = vehiclesData[0];
@@ -427,7 +454,21 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
     onComplete();
   };
 
-  if (loading) {
+  // Show loading while subscription is loading or while checking entries
+  if (subscriptionLoading || (loading && !hasChecked)) {
+    return (
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">
+            {subscriptionLoading ? "Loading subscription..." : "Checking for missing entries..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading && hasChecked) {
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
