@@ -397,7 +397,7 @@ const Account = () => {
                 <div className="flex items-center gap-2">
                   <Sparkles className={cn("h-4 w-4", limits.aiChatEnabled ? "text-primary" : "text-muted-foreground")} />
                   <span className={!limits.aiChatEnabled ? "text-muted-foreground" : ""}>
-                    {limits.aiChatEnabled ? (limits.aiChatDailyLimit === 999 ? "Unlimited AI" : `${limits.aiChatDailyLimit}/day AI`) : "No AI"}
+                    {limits.aiChatEnabled ? `${limits.aiChatDailyLimit}/day AI` : "No AI"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

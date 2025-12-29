@@ -20,6 +20,8 @@ interface ChatPanelProps {
   onSendMessage: (message: string) => void;
   onClearChat: () => void;
   error?: string | null;
+  remainingChats?: number;
+  dailyLimit?: number;
 }
 
 export function ChatPanel({
@@ -31,8 +33,11 @@ export function ChatPanel({
   onSendMessage,
   onClearChat,
   error,
+  remainingChats,
+  dailyLimit,
 }: ChatPanelProps) {
   const showSuggestions = messages.length === 0 && !isLoading;
+  const showRemainingChats = dailyLimit && dailyLimit > 0 && dailyLimit < 999;
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -49,7 +54,14 @@ export function ChatPanel({
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
               <Bot className="h-4 w-4 text-primary" />
             </div>
-            <SheetTitle className="text-base">AI Assistant</SheetTitle>
+            <div>
+              <SheetTitle className="text-base">AI Assistant</SheetTitle>
+              {showRemainingChats && (
+                <p className="text-xs text-muted-foreground">
+                  {remainingChats}/{dailyLimit} chats left today
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-1">
             {messages.length > 0 && (
@@ -111,8 +123,14 @@ export function ChatPanel({
         {/* Input Area */}
         <ChatInput
           onSubmit={onSendMessage}
-          disabled={isLoading}
-          placeholder={showSuggestions ? 'Ask about your business...' : 'Type your follow-up question...'}
+          disabled={isLoading || (remainingChats !== undefined && remainingChats <= 0)}
+          placeholder={
+            remainingChats !== undefined && remainingChats <= 0 
+              ? 'Daily limit reached. Upgrade for more.' 
+              : showSuggestions 
+                ? 'Ask about your business...' 
+                : 'Type your follow-up question...'
+          }
         />
       </SheetContent>
     </Sheet>

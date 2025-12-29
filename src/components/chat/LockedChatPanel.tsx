@@ -94,7 +94,7 @@ export function LockedChatPanel({ isOpen, onClose, onUpgrade }: LockedChatPanelP
 
             {/* Plan Info */}
             <p className="text-xs text-muted-foreground">
-              Available in Standard (30 chats/day) and Ultra (unlimited) plans
+              Available in Standard (30 chats/day) and Ultra (100 chats/day) plans
             </p>
           </div>
         </div>

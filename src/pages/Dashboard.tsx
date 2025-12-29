@@ -32,7 +32,7 @@ interface VehiclePerformance {
   fuelUsed: number;
 }
 
-type TimePeriod = '1day' | '7days' | '1month' | '6months';
+type TimePeriod = '1day' | '7days' | '1month' | '6months' | '1year' | '5years' | 'alltime';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -98,8 +98,14 @@ const Dashboard = () => {
       } else if (timePeriod === '1month') {
         startDate = format(startOfMonth(new Date()), "yyyy-MM-dd");
         endDate = format(endOfMonth(new Date()), "yyyy-MM-dd");
-      } else { // 6months
+      } else if (timePeriod === '6months') {
         startDate = format(startOfMonth(subMonths(new Date(), 5)), "yyyy-MM-dd");
+      } else if (timePeriod === '1year') {
+        startDate = format(subMonths(new Date(), 11), "yyyy-MM-dd");
+      } else if (timePeriod === '5years') {
+        startDate = format(subMonths(new Date(), 59), "yyyy-MM-dd");
+      } else { // alltime
+        startDate = "2000-01-01"; // Far back date to get all data
       }
 
       // Fetch period data
@@ -193,7 +199,7 @@ const Dashboard = () => {
             .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
             .map(([_, value]) => value);
           setChartData(sortedData);
-        } else { // 6months
+        } else if (timePeriod === '6months') {
           const monthlyData: { [key: string]: ChartDataPoint } = {};
           
           for (let i = 5; i >= 0; i--) {
@@ -219,6 +225,84 @@ const Dashboard = () => {
           // Sort chart data chronologically
           const sortedData = Object.entries(monthlyData)
             .sort(([monthA], [monthB]) => monthA.localeCompare(monthB))
+            .map(([_, value]) => value);
+          setChartData(sortedData);
+        } else if (timePeriod === '1year') {
+          // Group by month for 1 year view
+          const monthlyData: { [key: string]: ChartDataPoint } = {};
+          
+          for (let i = 11; i >= 0; i--) {
+            const monthDate = subMonths(new Date(), i);
+            const monthKey = format(monthDate, "yyyy-MM");
+            monthlyData[monthKey] = {
+              date: format(monthDate, "MMM"),
+              profit: 0,
+              earnings: 0,
+              expenses: 0,
+            };
+          }
+
+          periodData.forEach((entry) => {
+            const monthKey = format(new Date(entry.entry_date), "yyyy-MM");
+            if (monthlyData[monthKey]) {
+              monthlyData[monthKey].profit += Number(entry.net_profit);
+              monthlyData[monthKey].earnings += Number(entry.trip_earnings);
+              monthlyData[monthKey].expenses += Number(entry.total_expenses);
+            }
+          });
+
+          const sortedData = Object.entries(monthlyData)
+            .sort(([monthA], [monthB]) => monthA.localeCompare(monthB))
+            .map(([_, value]) => value);
+          setChartData(sortedData);
+        } else if (timePeriod === '5years') {
+          // Group by year for 5 years view
+          const yearlyData: { [key: string]: ChartDataPoint } = {};
+          
+          for (let i = 4; i >= 0; i--) {
+            const year = new Date().getFullYear() - i;
+            yearlyData[year.toString()] = {
+              date: year.toString(),
+              profit: 0,
+              earnings: 0,
+              expenses: 0,
+            };
+          }
+
+          periodData.forEach((entry) => {
+            const year = new Date(entry.entry_date).getFullYear().toString();
+            if (yearlyData[year]) {
+              yearlyData[year].profit += Number(entry.net_profit);
+              yearlyData[year].earnings += Number(entry.trip_earnings);
+              yearlyData[year].expenses += Number(entry.total_expenses);
+            }
+          });
+
+          const sortedData = Object.entries(yearlyData)
+            .sort(([yearA], [yearB]) => yearA.localeCompare(yearB))
+            .map(([_, value]) => value);
+          setChartData(sortedData);
+        } else { // alltime
+          // Group by year for all-time view
+          const yearlyData: { [key: string]: ChartDataPoint } = {};
+
+          periodData.forEach((entry) => {
+            const year = new Date(entry.entry_date).getFullYear().toString();
+            if (!yearlyData[year]) {
+              yearlyData[year] = {
+                date: year,
+                profit: 0,
+                earnings: 0,
+                expenses: 0,
+              };
+            }
+            yearlyData[year].profit += Number(entry.net_profit);
+            yearlyData[year].earnings += Number(entry.trip_earnings);
+            yearlyData[year].expenses += Number(entry.total_expenses);
+          });
+
+          const sortedData = Object.entries(yearlyData)
+            .sort(([yearA], [yearB]) => yearA.localeCompare(yearB))
             .map(([_, value]) => value);
           setChartData(sortedData);
         }
@@ -290,6 +374,12 @@ const Dashboard = () => {
         return 'This Month';
       case '6months':
         return 'Last 6 Months';
+      case '1year':
+        return 'Last 1 Year';
+      case '5years':
+        return 'Last 5 Years';
+      case 'alltime':
+        return 'All Time';
     }
   };
 
@@ -303,12 +393,26 @@ const Dashboard = () => {
         return 'This Month Performance';
       case '6months':
         return 'Last 6 Months Performance';
+      case '1year':
+        return 'Last 1 Year Performance';
+      case '5years':
+        return 'Last 5 Years Performance';
+      case 'alltime':
+        return 'All Time Performance';
     }
   };
 
   const handleTimePeriodChange = (value: string) => {
     // Check if user can access this time period based on plan
+    // Ultra-only periods: 1year, 5years, alltime
+    const isUltraOnlyPeriod = value === '1year' || value === '5years' || value === 'alltime';
     const monthsRequired = value === '6months' ? 6 : value === '1month' ? 1 : 0;
+    
+    if (isUltraOnlyPeriod && plan !== 'ultra' && plan !== 'trial') {
+      trigger('error');
+      navigate('/pricing');
+      return;
+    }
     
     if (monthsRequired > limits.dashboardMonths && plan !== 'trial') {
       // Show upgrade prompt
@@ -322,22 +426,26 @@ const Dashboard = () => {
   };
 
   // Check if a time period is locked based on plan
-  // Basic: 1 Day, 7 Days only (dashboardMonths = 0)
-  // Standard: 1 Day, 7 Days, 1 Month (dashboardMonths = 1)
-  // Ultra: All periods (dashboardMonths = 6)
+  // Basic: 1 Day, 7 Days, 1 Month (dashboardMonths = 1)
+  // Standard: 1 Day, 7 Days, 1 Month, 6 Months (dashboardMonths = 6)
+  // Ultra: All periods including 1yr, 5yr, All-time (dashboardMonths = 999)
   const isTimePeriodLocked = (period: TimePeriod): boolean => {
     if (plan === 'trial') return false;
     if (plan === 'ultra') return false;
     if (plan === 'expired') return period !== '1day';
     
-    // Basic plan: only 1day and 7days allowed
+    // Ultra-only periods
+    const isUltraOnlyPeriod = period === '1year' || period === '5years' || period === 'alltime';
+    if (isUltraOnlyPeriod) return true;
+    
+    // Basic plan: 1day, 7days, 1month allowed (not 6months)
     if (plan === 'basic') {
-      return period === '1month' || period === '6months';
+      return period === '6months';
     }
     
-    // Standard plan: 1day, 7days, 1month allowed (not 6months)
+    // Standard plan: 1day, 7days, 1month, 6months allowed
     if (plan === 'standard') {
-      return period === '6months';
+      return false;
     }
     
     return false;
@@ -354,30 +462,59 @@ const Dashboard = () => {
         {/* Time Period Selector */}
         <div className="animate-fade-in" style={{ animationDelay: "100ms" }}>
           <Tabs value={timePeriod} onValueChange={handleTimePeriodChange} className="w-full">
+            {/* Main time periods - available to all plans */}
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-4 h-11 touch-feedback">
-            <TabsTrigger value="1day" className="text-xs sm:text-sm font-medium">
-              1 Day
-            </TabsTrigger>
-            <TabsTrigger value="7days" className="text-xs sm:text-sm font-medium">
-              7 Days
-            </TabsTrigger>
-            <TabsTrigger 
-              value="1month" 
-              className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('1month') && "opacity-70")}
-            >
-              {isTimePeriodLocked('1month') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
-              1M
-            </TabsTrigger>
-            <TabsTrigger 
-              value="6months" 
-              className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('6months') && "opacity-70")}
-            >
-              {isTimePeriodLocked('6months') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
-              6M
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+              <TabsTrigger value="1day" className="text-xs sm:text-sm font-medium">
+                1 Day
+              </TabsTrigger>
+              <TabsTrigger value="7days" className="text-xs sm:text-sm font-medium">
+                7 Days
+              </TabsTrigger>
+              <TabsTrigger 
+                value="1month" 
+                className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('1month') && "opacity-70")}
+              >
+                {isTimePeriodLocked('1month') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                1M
+              </TabsTrigger>
+              <TabsTrigger 
+                value="6months" 
+                className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('6months') && "opacity-70")}
+              >
+                {isTimePeriodLocked('6months') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                6M
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Ultra-only time periods */}
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 h-11 touch-feedback mt-2">
+              <TabsTrigger 
+                value="1year" 
+                className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('1year') && "opacity-70")}
+              >
+                {isTimePeriodLocked('1year') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                {!isTimePeriodLocked('1year') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
+                1 Yr
+              </TabsTrigger>
+              <TabsTrigger 
+                value="5years" 
+                className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('5years') && "opacity-70")}
+              >
+                {isTimePeriodLocked('5years') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                {!isTimePeriodLocked('5years') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
+                5 Yr
+              </TabsTrigger>
+              <TabsTrigger 
+                value="alltime" 
+                className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('alltime') && "opacity-70")}
+              >
+                {isTimePeriodLocked('alltime') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                {!isTimePeriodLocked('alltime') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
+                All
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
       {/* Period Stats */}
       <div>

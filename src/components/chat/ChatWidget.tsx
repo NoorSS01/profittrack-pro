@@ -21,6 +21,8 @@ export function ChatWidget() {
     clearChat,
     openChat,
     closeChat,
+    remainingChats,
+    dailyLimit,
   } = useChat();
 
   const { plan, limits } = useSubscription();
@@ -49,6 +51,8 @@ export function ChatWidget() {
           onSendMessage={sendMessage}
           onClearChat={clearChat}
           error={error}
+          remainingChats={remainingChats}
+          dailyLimit={dailyLimit}
         />
       ) : (
         <LockedChatPanel

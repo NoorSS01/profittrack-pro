@@ -17,6 +17,9 @@ interface ChatContextType {
   clearChat: () => void;
   openChat: () => void;
   closeChat: () => void;
+  dailyChatCount: number;
+  remainingChats: number;
+  dailyLimit: number;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);

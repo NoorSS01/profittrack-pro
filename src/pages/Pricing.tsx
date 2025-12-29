@@ -155,14 +155,14 @@ const Pricing = () => {
       gradientFrom: "from-amber-500/5", popular: false, buttonText: "Get Ultra",
       features: [{ text: "Unlimited Vehicles", included: true }, { text: "Unlimited Trip History", included: true },
         { text: "1yr, 5yr & All-time View", included: true }, { text: "Full Reports", included: true },
-        { text: "AI Assistant (Unlimited)", included: true }, { text: "Export (PDF/Excel)", included: true },
+        { text: "AI Assistant (Higher limits)", included: true }, { text: "Export (PDF/Excel)", included: true },
         { text: "Priority Support", included: true }] },
   ];
 
   const faqs = [
     { question: "What happens after my 15-day free trial ends?", answer: "After your free trial ends, you'll need to choose a subscription plan to continue using TransportPro. Your data will be safely stored." },
     { question: "Can I change my plan later?", answer: "Yes! You can upgrade your plan at any time with immediate access to new features." },
-    { question: "What is the AI Assistant?", answer: "The AI Assistant helps analyze your data, provides insights on fuel efficiency, and suggests cost-saving tips. Standard: 30 chats/day, Ultra: unlimited." },
+    { question: "What is the AI Assistant?", answer: "The AI Assistant helps analyze your data, provides insights on fuel efficiency, and suggests cost-saving tips. Standard: 30 chats/day, Ultra: 100 chats/day (higher limits)." },
     { question: "How does the vehicle limit work?", answer: "Basic: 1 vehicle, Standard: 5 vehicles, Ultra: unlimited vehicles." },
     { question: "What payment methods do you accept?", answer: "We accept UPI payments (Google Pay, PhonePe, Paytm, BHIM, etc.)." },
     { question: "What is your refund policy?", answer: "Due to the digital nature of our services, all payments are final and non-refundable. Please use the 15-day free trial to explore all features before purchasing." },
