@@ -175,18 +175,29 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
         return;
       }
 
-      // Use the maxFillableDays calculated at the start of this function
-      const fillableCutoff = subDays(today, maxFillableDays);
-      console.log(`[MissingEntries] Fillable cutoff date: ${format(fillableCutoff, "yyyy-MM-dd")}, Total missing: ${allMissing.length}`);
+      // Calculate the cutoff date for fillable entries
+      // If maxFillableDays = 3, user can fill: yesterday (1 day back), 2 days back, 3 days back
+      // So cutoff should be: today - maxFillableDays (exclusive)
+      // Example: Today = Dec 29, maxFillableDays = 3
+      // Fillable: Dec 28 (1 back), Dec 27 (2 back), Dec 26 (3 back)
+      // Cutoff = Dec 29 - 3 = Dec 26, so dates > Dec 25 are fillable
+      const fillableCutoff = subDays(today, maxFillableDays + 1); // +1 because we want dates AFTER this cutoff
+      console.log(`[MissingEntries] Today: ${format(today, "yyyy-MM-dd")}, Max days: ${maxFillableDays}, Fillable cutoff: ${format(fillableCutoff, "yyyy-MM-dd")}, Total missing: ${allMissing.length}`);
       
-      const fillableDates = allMissing.filter(date => 
-        isAfter(parseISO(date), fillableCutoff) || format(fillableCutoff, "yyyy-MM-dd") === date
-      );
-      const autoZeroDates = allMissing.filter(date => 
-        isBefore(parseISO(date), fillableCutoff)
-      );
+      // Fillable dates are those AFTER the cutoff (strictly after, not equal)
+      const fillableDates = allMissing.filter(date => {
+        const dateObj = parseISO(date);
+        return isAfter(dateObj, fillableCutoff);
+      });
       
-      console.log(`[MissingEntries] Fillable dates: ${fillableDates.length}, Auto-zero dates: ${autoZeroDates.length}`);
+      // Auto-zero dates are those ON or BEFORE the cutoff
+      const autoZeroDates = allMissing.filter(date => {
+        const dateObj = parseISO(date);
+        return !isAfter(dateObj, fillableCutoff);
+      });
+      
+      console.log(`[MissingEntries] Fillable dates: ${fillableDates.length} (${fillableDates.join(', ')})`);
+      console.log(`[MissingEntries] Auto-zero dates: ${autoZeroDates.length} (${autoZeroDates.join(', ')})`);
 
       if (autoZeroDates.length > 0 && vehiclesData.length > 0) {
         const defaultVehicle = vehiclesData[0];
