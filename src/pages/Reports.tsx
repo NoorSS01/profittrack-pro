@@ -26,12 +26,14 @@ interface ExpenseBreakdown {
   value: number;
 }
 
+type ReportPeriod = "week" | "month" | "year" | "1year" | "5years" | "alltime";
+
 const Reports = () => {
   const { user } = useAuth();
   const { formatCurrency } = useCurrency();
   const { plan, limits } = useSubscription();
   const navigate = useNavigate();
-  const [period, setPeriod] = useState<"week" | "month" | "year">("month");
+  const [period, setPeriod] = useState<ReportPeriod>("week"); // Default to week for all plans
   const [reportData, setReportData] = useState<ReportData>({
     totalEarnings: 0,
     totalExpenses: 0,
@@ -45,23 +47,27 @@ const Reports = () => {
 
   // Check if period is locked based on plan
   // Basic: only week (7 days)
-  // Standard: week and month
-  // Ultra: all periods including year
-  const isPeriodLocked = (p: "week" | "month" | "year"): boolean => {
+  // Standard: week, month, and year
+  // Ultra: all periods including 1year, 5years, alltime
+  const isPeriodLocked = (p: ReportPeriod): boolean => {
     if (plan === 'trial') return false;
     if (plan === 'ultra') return false;
     if (plan === 'expired') return p !== 'week';
     
+    // Ultra-only periods
+    const isUltraOnlyPeriod = p === '1year' || p === '5years' || p === 'alltime';
+    if (isUltraOnlyPeriod) return true;
+    
     // Basic: only week allowed
     if (plan === 'basic') return p !== 'week';
     
-    // Standard: week and month allowed (not year)
-    if (plan === 'standard') return p === 'year';
+    // Standard: week, month, year allowed (not ultra-only periods)
+    if (plan === 'standard') return false;
     
     return false;
   };
 
-  const handlePeriodChange = (value: "week" | "month" | "year") => {
+  const handlePeriodChange = (value: ReportPeriod) => {
     if (isPeriodLocked(value)) {
       navigate('/pricing');
       return;
@@ -114,8 +120,17 @@ const Reports = () => {
       case "year":
         startDate = startOfYear(today);
         break;
+      case "1year":
+        startDate = subDays(today, 365);
+        break;
+      case "5years":
+        startDate = subDays(today, 365 * 5);
+        break;
+      case "alltime":
+        startDate = new Date(2000, 0, 1); // Far back date
+        break;
       default:
-        startDate = startOfMonth(today);
+        startDate = subDays(today, 7);
     }
 
     return {
@@ -296,6 +311,24 @@ const Reports = () => {
               <span className="flex items-center gap-2">
                 {isPeriodLocked('year') && <Lock className="h-3 w-3" />}
                 This Year
+              </span>
+            </SelectItem>
+            <SelectItem value="1year" disabled={isPeriodLocked('1year')}>
+              <span className="flex items-center gap-2">
+                {isPeriodLocked('1year') ? <Lock className="h-3 w-3" /> : <Crown className="h-3 w-3 text-amber-500" />}
+                Last 1 Year
+              </span>
+            </SelectItem>
+            <SelectItem value="5years" disabled={isPeriodLocked('5years')}>
+              <span className="flex items-center gap-2">
+                {isPeriodLocked('5years') ? <Lock className="h-3 w-3" /> : <Crown className="h-3 w-3 text-amber-500" />}
+                Last 5 Years
+              </span>
+            </SelectItem>
+            <SelectItem value="alltime" disabled={isPeriodLocked('alltime')}>
+              <span className="flex items-center gap-2">
+                {isPeriodLocked('alltime') ? <Lock className="h-3 w-3" /> : <Crown className="h-3 w-3 text-amber-500" />}
+                All Time
               </span>
             </SelectItem>
           </SelectContent>

@@ -131,6 +131,12 @@ export default function TripHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Check if filters are available for this plan (Basic plan cannot use filters)
+  const canUseFilters = plan === 'trial' || plan === 'standard' || plan === 'ultra';
+  
+  // Check if export is available (only Ultra can export)
+  const canExport = plan === 'trial' || plan === 'ultra' || limits.reportsExport;
+
   // Calculate the minimum allowed date based on plan
   const getMinAllowedDate = () => {
     if (plan === 'trial') return null; // No restriction during trial
@@ -436,98 +442,133 @@ export default function TripHistory() {
         </div>
       </div>
 
-      {/* Filters Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filters
-            </CardTitle>
+      {/* Filters Section - Hidden for Basic plan */}
+      {canUseFilters ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filters
+              </CardTitle>
+              {isDateRestricted && (
+                <Badge variant="secondary" className="gap-1">
+                  <Lock className="h-3 w-3" />
+                  Last {limits.tripHistoryDays} days
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
             {isDateRestricted && (
-              <Badge variant="secondary" className="gap-1">
-                <Lock className="h-3 w-3" />
-                Last {limits.tripHistoryDays} days
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isDateRestricted && (
-            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-amber-600" />
-                <span className="text-sm text-amber-700 dark:text-amber-400">
-                  Your {plan} plan shows last {limits.tripHistoryDays} days of history
-                </span>
+              <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm text-amber-700 dark:text-amber-400">
+                    Your {plan} plan shows last {limits.tripHistoryDays} days of history
+                  </span>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => navigate('/pricing')} className="gap-1">
+                  <Crown className="h-3 w-3" />
+                  Upgrade
+                </Button>
               </div>
-              <Button size="sm" variant="outline" onClick={() => navigate('/pricing')} className="gap-1">
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="vehicle-filter">Vehicle</Label>
+                <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                  <SelectTrigger id="vehicle-filter">
+                    <SelectValue placeholder="All Vehicles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Vehicles</SelectItem>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                        {vehicle.vehicle_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="date-from">From Date</Label>
+                <Input
+                  id="date-from"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="date-to">To Date</Label>
+                <Input
+                  id="date-to"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profit-filter">Status</Label>
+                <Select value={profitStatus} onValueChange={setProfitStatus}>
+                  <SelectTrigger id="profit-filter">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="profit">Profit Only</SelectItem>
+                    <SelectItem value="loss">Loss Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-2">
+                <X className="h-4 w-4" />
+                Clear Filters
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        /* Basic plan - Show locked filters card */
+        <Card className="border-dashed">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <Lock className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium">Filters Locked</p>
+                  <p className="text-sm text-muted-foreground">
+                    Upgrade to Standard or Ultra to filter your trip history
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" onClick={() => navigate('/pricing')} className="gap-1">
                 <Crown className="h-3 w-3" />
                 Upgrade
               </Button>
             </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="vehicle-filter">Vehicle</Label>
-              <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-                <SelectTrigger id="vehicle-filter">
-                  <SelectValue placeholder="All Vehicles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Vehicles</SelectItem>
-                  {vehicles.map((vehicle) => (
-                    <SelectItem key={vehicle.id} value={vehicle.id}>
-                      {vehicle.vehicle_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="date-from">From Date</Label>
-              <Input
-                id="date-from"
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="date-to">To Date</Label>
-              <Input
-                id="date-to"
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="profit-filter">Status</Label>
-              <Select value={profitStatus} onValueChange={setProfitStatus}>
-                <SelectTrigger id="profit-filter">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="profit">Profit Only</SelectItem>
-                  <SelectItem value="loss">Loss Only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex justify-end mt-4">
-            <Button variant="outline" size="sm" onClick={clearFilters} className="gap-2">
-              <X className="h-4 w-4" />
-              Clear Filters
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            {isDateRestricted && (
+              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm text-amber-700 dark:text-amber-400">
+                    Your {plan} plan shows last {limits.tripHistoryDays} days of history
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {entries.length === 0 ? (
         <Card>
@@ -543,28 +584,41 @@ export default function TripHistory() {
                 ? `All Entries (${entries.length})`
                 : `Filtered Entries (${filteredEntries.length} of ${entries.length})`}
             </CardTitle>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={filteredEntries.length === 0}
-                  title="Export"
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={exportToCSV} className="gap-2 cursor-pointer">
-                  <FileText className="h-4 w-4" />
-                  Export as CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportToXLSX} className="gap-2 cursor-pointer">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Export as Excel
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {canExport ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={filteredEntries.length === 0}
+                    title="Export"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportToCSV} className="gap-2 cursor-pointer">
+                    <FileText className="h-4 w-4" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportToXLSX} className="gap-2 cursor-pointer">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Export as Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => navigate('/pricing')}
+                title="Export (Ultra only)"
+                className="relative"
+              >
+                <Download className="h-4 w-4 opacity-50" />
+                <Lock className="h-3 w-3 absolute -top-1 -right-1 text-muted-foreground" />
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
