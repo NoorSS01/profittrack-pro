@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, eachDayOfInterval, parseISO, isBefore, startOfDay, isAfter } from "date-fns";
-import { AlertTriangle, Calendar, Loader2, ArrowRight, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Calendar, Loader2, ArrowRight, Plus, Trash2, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 interface Vehicle {
   id: string;
@@ -46,11 +48,13 @@ interface MissingEntriesModalProps {
   onComplete: () => void;
 }
 
-const MAX_FILLABLE_DAYS = 7;
+// Admin emails - admins have no restrictions
+const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
 
 export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { limits, plan } = useSubscription();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -64,6 +68,15 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
   
   // Bulk mode - multiple vehicles support
   const [bulkEntries, setBulkEntries] = useState<BulkVehicleEntry[]>([]);
+
+  // Check if user is admin
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  
+  // Get max fillable days based on plan (admin gets unlimited)
+  const getMaxFillableDays = () => {
+    if (isAdmin) return 365; // Admin can fill up to 1 year back
+    return limits.missedEntryDays || 7;
+  };
 
   useEffect(() => {
     const savedMode = localStorage.getItem("missing_entry_mode") as "daily" | "bulk" | null;
@@ -139,7 +152,8 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
         return;
       }
 
-      const fillableCutoff = subDays(today, MAX_FILLABLE_DAYS);
+      const maxFillableDays = getMaxFillableDays();
+      const fillableCutoff = subDays(today, maxFillableDays);
       const fillableDates = allMissing.filter(date => 
         isAfter(parseISO(date), fillableCutoff) || format(fillableCutoff, "yyyy-MM-dd") === date
       );
@@ -447,6 +461,14 @@ export const MissingEntriesModal = ({ onComplete }: MissingEntriesModalProps) =>
             <span className="block">
               You have {missingDates.length} missing {missingDates.length === 1 ? "entry" : "entries"} ({dateRange})
             </span>
+            {!isAdmin && (
+              <span className="block text-xs">
+                <Badge variant="secondary" className="gap-1">
+                  <Lock className="h-3 w-3" />
+                  {plan === 'basic' ? 'Basic' : plan === 'standard' ? 'Standard' : plan === 'ultra' ? 'Ultra' : 'Trial'}: Can add entries up to {limits.missedEntryDays} days back
+                </Badge>
+              </span>
+            )}
             {autoFilledCount > 0 && (
               <span className="block text-muted-foreground text-sm">
                 Note: {autoFilledCount} older entries were auto-filled with zero values.

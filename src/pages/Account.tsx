@@ -395,6 +395,10 @@ const Account = () => {
                   <span>{limits.tripHistoryDays === 9999 ? "Unlimited" : `${limits.tripHistoryDays}d`} History</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <span>{limits.missedEntryDays}d Back Entry</span>
+                </div>
+                <div className="flex items-center gap-2">
                   <Sparkles className={cn("h-4 w-4", limits.aiChatEnabled ? "text-primary" : "text-muted-foreground")} />
                   <span className={!limits.aiChatEnabled ? "text-muted-foreground" : ""}>
                     {limits.aiChatEnabled ? `${limits.aiChatDailyLimit}/day AI` : "No AI"}

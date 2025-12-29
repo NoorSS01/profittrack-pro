@@ -13,6 +13,7 @@ export interface PlanLimits {
   aiChatDailyLimit: number;
   reportsExport: boolean;
   prioritySupport: boolean;
+  missedEntryDays: number; // How many days back user can add missed entries
 }
 
 export interface SubscriptionState {
@@ -33,6 +34,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     aiChatDailyLimit: 50,
     reportsExport: true,
     prioritySupport: false,
+    missedEntryDays: 15, // Trial users can add entries up to 15 days back
   },
   basic: {
     maxVehicles: 1,
@@ -42,6 +44,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     aiChatDailyLimit: 0,
     reportsExport: false,
     prioritySupport: false,
+    missedEntryDays: 3, // Basic users can add entries up to 3 days back
   },
   standard: {
     maxVehicles: 5,
@@ -51,6 +54,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     aiChatDailyLimit: 30,
     reportsExport: false,
     prioritySupport: false,
+    missedEntryDays: 7, // Standard users can add entries up to 7 days back
   },
   ultra: {
     maxVehicles: 999,
@@ -60,6 +64,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     aiChatDailyLimit: 100, // Higher limits (100/day) to prevent abuse
     reportsExport: true,
     prioritySupport: true,
+    missedEntryDays: 30, // Ultra users can add entries up to 30 days back
   },
   expired: {
     maxVehicles: 0,
@@ -69,6 +74,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     aiChatDailyLimit: 0,
     reportsExport: false,
     prioritySupport: false,
+    missedEntryDays: 0,
   },
 };
 
@@ -81,9 +87,13 @@ export const PLAN_PRICES = {
 
 const FREE_TRIAL_DAYS = 15;
 
+// Admin emails - admins get permanent ultra access
+const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
+
 interface SubscriptionContextType extends SubscriptionState {
   checkFeatureAccess: (feature: keyof PlanLimits) => boolean;
   refreshSubscription: () => Promise<void>;
+  isAdmin: boolean;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -99,9 +109,25 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     subscriptionEndDate: null,
   });
 
+  // Check if user is admin
+  const isAdmin = user?.email ? ADMIN_EMAILS.includes(user.email.toLowerCase()) : false;
+
   const fetchSubscription = async () => {
     if (!user) {
       setState(prev => ({ ...prev, isLoading: false }));
+      return;
+    }
+
+    // Admin users get permanent ultra access
+    if (ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
+      setState({
+        plan: "ultra",
+        isTrialActive: false,
+        trialDaysLeft: 0,
+        limits: PLAN_LIMITS.ultra,
+        isLoading: false,
+        subscriptionEndDate: null,
+      });
       return;
     }
 
@@ -173,7 +199,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <SubscriptionContext.Provider value={{ ...state, checkFeatureAccess, refreshSubscription }}>
+    <SubscriptionContext.Provider value={{ ...state, checkFeatureAccess, refreshSubscription, isAdmin }}>
       {children}
     </SubscriptionContext.Provider>
   );

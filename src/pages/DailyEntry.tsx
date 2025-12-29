@@ -2,17 +2,22 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { Calendar, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { Calendar, TrendingUp, TrendingDown, DollarSign, Lock, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, subDays, isBefore, parseISO, startOfDay } from "date-fns";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { DailyEntrySkeleton } from "@/components/skeletons/DailyEntrySkeleton";
+import { Badge } from "@/components/ui/badge";
+
+// Admin emails - admins have no restrictions
+const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
 
 interface Vehicle {
   id: string;
@@ -31,11 +36,25 @@ const DailyEntry = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { formatCurrency } = useCurrency();
+  const { limits, plan } = useSubscription();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [fuelPricePerLiter, setFuelPricePerLiter] = useState("100");
+  
+  // Check if user is admin
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  
+  // Calculate min date based on plan (admin gets unlimited)
+  const getMinDate = () => {
+    if (isAdmin) return format(subDays(new Date(), 365), "yyyy-MM-dd"); // Admin: 1 year back
+    const maxDaysBack = limits.missedEntryDays || 7;
+    return format(subDays(new Date(), maxDaysBack), "yyyy-MM-dd");
+  };
+  
+  const minDate = getMinDate();
+  const maxDate = format(new Date(), "yyyy-MM-dd");
   
   const [formData, setFormData] = useState({
     vehicle_id: "",
@@ -239,10 +258,30 @@ const DailyEntry = () => {
                 id="entry_date"
                 type="date"
                 value={formData.entry_date}
-                onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
+                min={minDate}
+                max={maxDate}
+                onChange={(e) => {
+                  const selectedDate = e.target.value;
+                  // Validate date is within allowed range
+                  if (isBefore(parseISO(selectedDate), parseISO(minDate))) {
+                    toast({
+                      title: "Date Restricted",
+                      description: `Your ${plan} plan allows entries up to ${limits.missedEntryDays} days back. Upgrade for more.`,
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setFormData({ ...formData, entry_date: selectedDate });
+                }}
                 required
                 className="h-12"
               />
+              {!isAdmin && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  {plan === 'basic' ? 'Basic' : plan === 'standard' ? 'Standard' : plan === 'ultra' ? 'Ultra' : 'Trial'} plan: Can add entries up to {limits.missedEntryDays} days back
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="kilometers">Kilometers *</Label>

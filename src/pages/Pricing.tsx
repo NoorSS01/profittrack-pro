@@ -138,7 +138,8 @@ const Pricing = () => {
       icon: Truck, color: "text-blue-500", bgColor: "bg-blue-500/10", borderColor: "border-blue-500/30",
       gradientFrom: "from-blue-500/5", popular: false, buttonText: "Get Basic",
       features: [{ text: "1 Vehicle", included: true }, { text: "10 Days Trip History", included: true },
-        { text: "1 Month Dashboard View", included: true }, { text: "Basic Reports", included: true },
+        { text: "1 Month Dashboard View", included: true }, { text: "Add Entries (3 days back)", included: true },
+        { text: "Basic Reports", included: true },
         { text: "AI Assistant", included: false }, { text: "Export Reports", included: false },
         { text: "Priority Support", included: false }] },
     { name: "Standard", id: "standard", price: billingCycle === "monthly" ? PLAN_PRICES.standard.monthly : PLAN_PRICES.standard.yearly,
@@ -146,7 +147,8 @@ const Pricing = () => {
       icon: Zap, color: "text-primary", bgColor: "bg-primary/10", borderColor: "border-primary/40",
       gradientFrom: "from-primary/5", popular: true, buttonText: "Get Standard",
       features: [{ text: "5 Vehicles", included: true }, { text: "90 Days Trip History", included: true },
-        { text: "6 Month Dashboard View", included: true }, { text: "Full Reports", included: true },
+        { text: "6 Month Dashboard View", included: true }, { text: "Add Entries (7 days back)", included: true },
+        { text: "Full Reports", included: true },
         { text: "AI Assistant (30/day)", included: true }, { text: "Export Reports", included: false },
         { text: "Priority Support", included: false }] },
     { name: "Ultra", id: "ultra", price: billingCycle === "monthly" ? PLAN_PRICES.ultra.monthly : PLAN_PRICES.ultra.yearly,
@@ -154,7 +156,8 @@ const Pricing = () => {
       icon: Crown, color: "text-amber-500", bgColor: "bg-amber-500/10", borderColor: "border-amber-500/40",
       gradientFrom: "from-amber-500/5", popular: false, buttonText: "Get Ultra",
       features: [{ text: "Unlimited Vehicles", included: true }, { text: "Unlimited Trip History", included: true },
-        { text: "1yr, 5yr & All-time View", included: true }, { text: "Full Reports", included: true },
+        { text: "1yr, 5yr & All-time View", included: true }, { text: "Add Entries (30 days back)", included: true },
+        { text: "Full Reports", included: true },
         { text: "AI Assistant (Higher limits)", included: true }, { text: "Export (PDF/Excel)", included: true },
         { text: "Priority Support", included: true }] },
   ];
@@ -173,6 +176,15 @@ const Pricing = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pt-6 pb-8 px-3 md:py-8 md:px-4">
       <div className="max-w-6xl mx-auto">
+        {/* Back to Dashboard - Top */}
+        {plan !== "expired" && (
+          <div className="mb-4">
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+              ← Back to Dashboard
+            </Button>
+          </div>
+        )}
+        
         <div className="text-center mb-5 mt-2">
           <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-2">Choose Your Plan</h1>
           <p className="text-muted-foreground text-sm md:text-lg max-w-2xl mx-auto">
@@ -244,7 +256,6 @@ const Pricing = () => {
           </Accordion>
         </div>
         <div className="text-center text-xs text-muted-foreground mb-4 p-3 bg-muted/30 rounded-lg"><p>💳 Secure UPI Payment • Instant Processing • 24hr Activation</p></div>
-        {plan !== "expired" && <div className="text-center"><Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back to Dashboard</Button></div>}
       </div>
       <Dialog open={showPaymentDialog} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-md">

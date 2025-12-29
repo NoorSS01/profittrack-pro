@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Truck, Mail, Lock, Loader2 } from "lucide-react";
+import { Truck, Mail, Lock, Loader2, User, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -35,6 +35,8 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -232,21 +234,61 @@ const Auth = () => {
         });
         navigate("/");
       } else {
-        const { error } = await supabase.auth.signUp({
+        // Validate name and phone for signup
+        if (!fullName.trim()) {
+          toast({
+            title: "Name Required",
+            description: "Please enter your full name.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+        
+        const phoneDigits = phoneNumber.replace(/\D/g, '');
+        if (phoneDigits.length !== 10) {
+          toast({
+            title: "Invalid Phone Number",
+            description: "Please enter a valid 10-digit mobile number.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              full_name: fullName.trim(),
+              phone_number: phoneDigits,
+            },
           },
         });
 
         if (error) throw error;
+
+        // Update profile with name and phone
+        if (data.user) {
+          await supabase
+            .from("profiles")
+            .update({ 
+              full_name: fullName.trim(),
+              phone_number: phoneDigits,
+            } as any)
+            .eq("id", data.user.id);
+        }
 
         toast({
           title: "Account created!",
           description: "You can now log in with your credentials.",
         });
         setIsLogin(true);
+        // Clear signup fields
+        setFullName("");
+        setPhoneNumber("");
       }
     } catch (error: any) {
       toast({
@@ -290,6 +332,53 @@ const Auth = () => {
 
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
+            {/* Name field - only for signup */}
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-base">Full Name *</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required={!isLogin}
+                    className="pl-10 h-12 text-base"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Phone field - only for signup */}
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber" className="text-base">Mobile Number *</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                  <div className="flex">
+                    <span className="inline-flex items-center px-3 text-sm text-muted-foreground bg-muted border border-r-0 border-input rounded-l-md">
+                      +91
+                    </span>
+                    <Input
+                      id="phoneNumber"
+                      type="tel"
+                      placeholder="10-digit mobile number"
+                      value={phoneNumber}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setPhoneNumber(value);
+                      }}
+                      required={!isLogin}
+                      maxLength={10}
+                      className="h-12 text-base rounded-l-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-base">Email</Label>
               <div className="relative">
