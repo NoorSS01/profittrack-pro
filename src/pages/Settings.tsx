@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings as SettingsIcon, DollarSign, CalendarDays, ArrowLeft } from "lucide-react";
+import { Settings as SettingsIcon, DollarSign, CalendarDays, ArrowLeft, Fuel } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { SettingsSkeleton } from "@/components/skeletons/SettingsSkeleton";
@@ -24,6 +24,7 @@ const Settings = () => {
     business_name: "",
     contact_email: "",
     billing_cycle_start: "1",
+    fuel_price_per_liter: "100",
   });
 
   // Load missing entry mode from localStorage
@@ -39,8 +40,8 @@ const Settings = () => {
     localStorage.setItem("missing_entry_mode", value);
     toast({
       title: "Setting Updated",
-      description: value === "daily" 
-        ? "Missing entries will be filled day by day" 
+      description: value === "daily"
+        ? "Missing entries will be filled day by day"
         : "Missing entries can be filled with total kilometers for date range",
     });
   };
@@ -67,6 +68,7 @@ const Settings = () => {
           business_name: data.business_name || "",
           contact_email: data.contact_email || "",
           billing_cycle_start: data.billing_cycle_start?.toString() || "1",
+          fuel_price_per_liter: data.fuel_price_per_liter?.toString() || "100",
         });
       }
     } catch (error: any) {
@@ -87,6 +89,7 @@ const Settings = () => {
           business_name: formData.business_name,
           contact_email: formData.contact_email,
           billing_cycle_start: parseInt(formData.billing_cycle_start),
+          fuel_price_per_liter: parseFloat(formData.fuel_price_per_liter) || 100,
         })
         .eq("id", user?.id);
 
@@ -210,6 +213,38 @@ const Settings = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <Fuel className="h-5 w-5" />
+            Fuel Price
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fuel_price_per_liter">Default Fuel Price per Liter (₹)</Label>
+              <Input
+                id="fuel_price_per_liter"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.fuel_price_per_liter}
+                onChange={(e) => setFormData({ ...formData, fuel_price_per_liter: e.target.value })}
+                placeholder="e.g., 100"
+                className="h-12"
+              />
+              <p className="text-sm text-muted-foreground">
+                This price will be used for fuel cost calculations in Daily Entry
+              </p>
+            </div>
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
+              {loading ? "Saving..." : "Save Fuel Price"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5" />
             Missing Entry Mode
           </CardTitle>
@@ -227,7 +262,7 @@ const Settings = () => {
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground">
-              {missingEntryMode === "daily" 
+              {missingEntryMode === "daily"
                 ? "You'll enter kilometers for each missing day individually"
                 : "You'll enter total kilometers which will be distributed across missing days"
               }

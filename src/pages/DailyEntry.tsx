@@ -15,6 +15,7 @@ import { format, subDays, isBefore, parseISO, startOfDay } from "date-fns";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { DailyEntrySkeleton } from "@/components/skeletons/DailyEntrySkeleton";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 // Admin emails - admins have no restrictions
 const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
@@ -42,6 +43,7 @@ const DailyEntry = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [fuelPricePerLiter, setFuelPricePerLiter] = useState("100");
+  const [dateDialogOpen, setDateDialogOpen] = useState(false);
 
   // Check if user is admin
   const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
@@ -74,8 +76,26 @@ const DailyEntry = () => {
   useEffect(() => {
     if (user) {
       fetchVehicles();
+      fetchFuelPrice();
     }
   }, [user]);
+
+  // Fetch fuel price from user's profile
+  const fetchFuelPrice = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("fuel_price_per_liter")
+        .eq("id", user?.id)
+        .single();
+
+      if (!error && data?.fuel_price_per_liter) {
+        setFuelPricePerLiter(data.fuel_price_per_liter.toString());
+      }
+    } catch (error) {
+      console.error("Error fetching fuel price:", error);
+    }
+  };
 
   // Auto-calculate based on kilometers and vehicle
   useEffect(() => {
@@ -137,6 +157,13 @@ const DailyEntry = () => {
 
       if (error) throw error;
       setVehicles(data || []);
+
+      // Auto-select vehicle for Basic Plan users with only 1 vehicle
+      if (plan === 'basic' && data && data.length === 1) {
+        const vehicle = data[0];
+        setSelectedVehicle(vehicle);
+        setFormData(prev => ({ ...prev, vehicle_id: vehicle.id }));
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -227,9 +254,51 @@ const DailyEntry = () => {
               Trip Details
             </CardTitle>
             {plan === 'basic' && (
-              <Badge variant="outline" className="text-sm font-medium">
-                {format(new Date(), "dd/MM/yyyy")}
-              </Badge>
+              <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    className="text-sm font-medium cursor-pointer hover:bg-accent transition-colors"
+                  >
+                    {format(parseISO(formData.entry_date), "dd/MM/yyyy")}
+                  </Badge>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Select Date</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="basic_entry_date">Entry Date</Label>
+                      <Input
+                        id="basic_entry_date"
+                        type="date"
+                        value={formData.entry_date}
+                        min={format(subDays(new Date(), 3), "yyyy-MM-dd")}
+                        max={maxDate}
+                        onChange={(e) => {
+                          const selectedDate = e.target.value;
+                          const minAllowed = format(subDays(new Date(), 3), "yyyy-MM-dd");
+                          if (isBefore(parseISO(selectedDate), parseISO(minAllowed))) {
+                            toast({
+                              title: "Date Restricted",
+                              description: "Basic plan allows entries up to 3 days back.",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setFormData({ ...formData, entry_date: selectedDate });
+                          setDateDialogOpen(false);
+                        }}
+                        className="h-12"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Basic plan: Can select up to 3 days back
+                      </p>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">

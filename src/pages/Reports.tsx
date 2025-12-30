@@ -53,17 +53,17 @@ const Reports = () => {
     if (plan === 'trial') return false;
     if (plan === 'ultra') return false;
     if (plan === 'expired') return p !== 'week';
-    
+
     // Ultra-only periods
     const isUltraOnlyPeriod = p === '1year' || p === '5years' || p === 'alltime';
     if (isUltraOnlyPeriod) return true;
-    
+
     // Basic: only week allowed
     if (plan === 'basic') return p !== 'week';
-    
+
     // Standard: week, month, year allowed (not ultra-only periods)
     if (plan === 'standard') return false;
-    
+
     return false;
   };
 
@@ -178,7 +178,7 @@ const Reports = () => {
             const dailyEMI = Number(entry.vehicles?.monthly_emi || 0) / 30;
             const dailyDriverSalary = Number(entry.vehicles?.driver_monthly_salary || 0) / 30;
             const dailyMaintenance = Number(entry.vehicles?.expected_monthly_maintenance || 0) / 30;
-            
+
             return {
               fuel: acc.fuel + Number(entry.fuel_cost),
               toll: acc.toll + Number(entry.toll_expense),
@@ -211,7 +211,7 @@ const Reports = () => {
 
         entries.forEach((entry: any) => {
           const vehicleName = entry.vehicles?.vehicle_name || "Unknown";
-          
+
           if (!vehicleTotals[vehicleName]) {
             vehicleTotals[vehicleName] = 0;
           }
@@ -245,15 +245,15 @@ const Reports = () => {
   };
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#FF6B9D", "#C471ED", "#12A594"];
-  
+
   // Get bar color based on profit/loss value with gradient intensity
   const getBarColor = (profit: number) => {
     if (profit === 0) return "hsl(var(--muted))";
-    
+
     // Find max absolute value for scaling
     const maxAbsValue = Math.max(...vehicleComparison.map((v: any) => Math.abs(v.profit)), 1);
     const intensity = Math.min(Math.abs(profit) / maxAbsValue, 1);
-    
+
     if (profit > 0) {
       // Green gradient: light green (small profit) to dark green (high profit)
       const lightness = 65 - (intensity * 30); // 65% to 35%
@@ -270,7 +270,7 @@ const Reports = () => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       const isProfit = data.profit >= 0;
-      
+
       return (
         <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg">
           <p className="font-medium text-foreground mb-1">{data.name}</p>
@@ -335,64 +335,66 @@ const Reports = () => {
         </Select>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Total Earnings
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">
-              {formatCurrency(reportData.totalEarnings)}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Summary Cards - Hidden for Basic Plan to reduce complexity */}
+      {plan !== 'basic' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Total Earnings
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">
+                {formatCurrency(reportData.totalEarnings)}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Total Expenses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {formatCurrency(reportData.totalExpenses)}
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Total Expenses
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-destructive">
+                {formatCurrency(reportData.totalExpenses)}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className={reportData.netProfit >= 0 ? "border-success/20 bg-success/5" : "border-destructive/20 bg-destructive/5"}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Net Profit
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${reportData.netProfit >= 0 ? "text-success" : "text-destructive"}`}>
-              {formatCurrency(reportData.netProfit)}
-            </div>
-          </CardContent>
-        </Card>
+          <Card className={reportData.netProfit >= 0 ? "border-success/20 bg-success/5" : "border-destructive/20 bg-destructive/5"}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Net Profit
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${reportData.netProfit >= 0 ? "text-success" : "text-destructive"}`}>
+                {formatCurrency(reportData.netProfit)}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Truck className="h-4 w-4" />
-              Total Kilometers
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-accent">
-              {reportData.totalKm.toFixed(1)} km
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Truck className="h-4 w-4" />
+                Total Kilometers
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-accent">
+                {reportData.totalKm.toFixed(1)} km
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -436,7 +438,7 @@ const Reports = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={vehicleComparison} barCategoryGap="15%">
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
-                  <XAxis 
+                  <XAxis
                     dataKey="name"
                     tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                     interval={0}
@@ -444,14 +446,14 @@ const Reports = () => {
                     textAnchor={vehicleComparison.length > 4 ? "end" : "middle"}
                     height={vehicleComparison.length > 4 ? 80 : 40}
                   />
-                  <YAxis 
+                  <YAxis
                     tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                     tickFormatter={(value) => formatCurrency(value)}
                     width={80}
                   />
                   <Tooltip content={<VehicleBarTooltip />} cursor={{ fill: 'hsl(var(--muted)/0.2)' }} />
-                  <Bar 
-                    dataKey="profit" 
+                  <Bar
+                    dataKey="profit"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={60}
                   >

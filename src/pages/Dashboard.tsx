@@ -15,6 +15,7 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { useHaptic } from "@/hooks/use-haptic";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 import { cn } from "@/lib/utils";
+import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 
 interface ChartDataPoint {
   date: string;
@@ -50,12 +51,55 @@ const Dashboard = () => {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [vehiclePerformance, setVehiclePerformance] = useState<VehiclePerformance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasVehicles, setHasVehicles] = useState(false);
+  const [hasEntries, setHasEntries] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchDashboardData();
+      checkOnboardingStatus();
     }
   }, [user, timePeriod]);
+
+  // Check if user needs onboarding
+  const checkOnboardingStatus = async () => {
+    const onboardingCompleted = localStorage.getItem("onboarding_completed");
+    if (onboardingCompleted === "true") {
+      setShowOnboarding(false);
+      return;
+    }
+
+    try {
+      // Check if user has vehicles
+      const { data: vehicles } = await supabase
+        .from("vehicles")
+        .select("id")
+        .eq("user_id", user?.id)
+        .eq("is_active", true)
+        .limit(1);
+
+      const userHasVehicles = vehicles && vehicles.length > 0;
+      setHasVehicles(userHasVehicles);
+
+      // Check if user has any entries
+      const { data: entries } = await supabase
+        .from("daily_entries")
+        .select("id")
+        .eq("user_id", user?.id)
+        .limit(1);
+
+      const userHasEntries = entries && entries.length > 0;
+      setHasEntries(userHasEntries);
+
+      // Show onboarding if user hasn't completed it and is new
+      if (!userHasVehicles || !userHasEntries) {
+        setShowOnboarding(true);
+      }
+    } catch (error) {
+      console.error("Error checking onboarding status:", error);
+    }
+  };
 
   // Real-time subscription for automatic updates
   useEffect(() => {
@@ -362,6 +406,17 @@ const Dashboard = () => {
 
   if (loading) {
     return <DashboardSkeleton />;
+  }
+
+  // Show onboarding tutorial for new users
+  if (showOnboarding) {
+    return (
+      <OnboardingTutorial
+        hasVehicles={hasVehicles}
+        hasEntries={hasEntries}
+        onComplete={() => setShowOnboarding(false)}
+      />
+    );
   }
 
   const getPeriodLabel = () => {
