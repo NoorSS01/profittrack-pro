@@ -126,14 +126,15 @@ const Vehicles = () => {
         mileage_kmpl: parseFloat(formData.mileage_kmpl),
         earning_type: formData.earning_type,
         default_earning_value: parseFloat(formData.default_earning_value),
-        driver_name: formData.driver_name,
-        driver_monthly_salary: parseFloat(formData.driver_monthly_salary) || 0,
-        monthly_emi: parseFloat(formData.monthly_emi) || 0,
-        expected_monthly_maintenance: parseFloat(formData.expected_monthly_maintenance) || 0,
+        // Owner-only fields - clear in Agent mode
+        driver_name: isAgent ? null : formData.driver_name,
+        driver_monthly_salary: isAgent ? 0 : (parseFloat(formData.driver_monthly_salary) || 0),
+        monthly_emi: isAgent ? 0 : (parseFloat(formData.monthly_emi) || 0),
+        expected_monthly_maintenance: isAgent ? 0 : (parseFloat(formData.expected_monthly_maintenance) || 0),
         notes: formData.notes,
-        // Agent mode fields
+        // Agent mode fields - office_rate_per_km uses default_earning_value
         partner_name: isAgent ? formData.partner_name : null,
-        office_rate_per_km: isAgent ? (parseFloat(formData.office_rate_per_km) || null) : null,
+        office_rate_per_km: isAgent ? parseFloat(formData.default_earning_value) : null,
         agent_commission_per_km: isAgent ? (parseFloat(formData.agent_commission_per_km) || null) : null,
       };
 
@@ -368,7 +369,33 @@ const Vehicles = () => {
                     </span>
                     <span className="font-semibold">{formatCurrency(vehicle.default_earning_value)}</span>
                   </div>
-                  {vehicle.driver_name && (
+
+                  {/* Agent-managed vehicle details */}
+                  {vehicle.partner_name && (
+                    <>
+                      <div className="flex items-center justify-between pt-2 mt-2 border-t">
+                        <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                          <Users className="h-3 w-3 mr-1" />
+                          Agent Managed
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Partner:</span>
+                        <span className="font-semibold">{vehicle.partner_name}</span>
+                      </div>
+                      {vehicle.agent_commission_per_km && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <DollarSign className="h-4 w-4 text-amber-500" />
+                          <span className="text-muted-foreground">Commission:</span>
+                          <span className="font-semibold text-amber-600">₹{vehicle.agent_commission_per_km}/km</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Owner-managed vehicle - show driver */}
+                  {!vehicle.partner_name && vehicle.driver_name && (
                     <div className="flex items-center gap-2 text-sm">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Driver:</span>
@@ -450,59 +477,68 @@ const Vehicles = () => {
                     required
                     placeholder="e.g., 15"
                   />
+                  {isAgent && (
+                    <p className="text-xs text-muted-foreground">This is the rate paid by the company (Office Rate)</p>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="driver_name">Driver Name</Label>
-                  <Input
-                    id="driver_name"
-                    value={formData.driver_name}
-                    onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
-                    placeholder="Driver's name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="driver_monthly_salary">Driver Monthly Salary (₹)</Label>
-                  <Input
-                    id="driver_monthly_salary"
-                    type="number"
-                    step="0.01"
-                    value={formData.driver_monthly_salary}
-                    onChange={(e) => setFormData({ ...formData, driver_monthly_salary: e.target.value })}
-                    placeholder="e.g., 25000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="monthly_emi">Monthly EMI (₹)</Label>
-                  <Input
-                    id="monthly_emi"
-                    type="number"
-                    step="0.01"
-                    value={formData.monthly_emi}
-                    onChange={(e) => setFormData({ ...formData, monthly_emi: e.target.value })}
-                    placeholder="e.g., 15000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="expected_monthly_maintenance">Expected Monthly Maintenance (₹)</Label>
-                  <Input
-                    id="expected_monthly_maintenance"
-                    type="number"
-                    step="0.01"
-                    value={formData.expected_monthly_maintenance}
-                    onChange={(e) => setFormData({ ...formData, expected_monthly_maintenance: e.target.value })}
-                    placeholder="e.g., 5000"
-                  />
-                </div>
+
+                {/* Owner-only fields - hidden in Agent mode */}
+                {!isAgent && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="driver_name">Driver Name</Label>
+                      <Input
+                        id="driver_name"
+                        value={formData.driver_name}
+                        onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
+                        placeholder="Driver's name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="driver_monthly_salary">Driver Monthly Salary (₹)</Label>
+                      <Input
+                        id="driver_monthly_salary"
+                        type="number"
+                        step="0.01"
+                        value={formData.driver_monthly_salary}
+                        onChange={(e) => setFormData({ ...formData, driver_monthly_salary: e.target.value })}
+                        placeholder="e.g., 25000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="monthly_emi">Monthly EMI (₹)</Label>
+                      <Input
+                        id="monthly_emi"
+                        type="number"
+                        step="0.01"
+                        value={formData.monthly_emi}
+                        onChange={(e) => setFormData({ ...formData, monthly_emi: e.target.value })}
+                        placeholder="e.g., 15000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="expected_monthly_maintenance">Expected Monthly Maintenance (₹)</Label>
+                      <Input
+                        id="expected_monthly_maintenance"
+                        type="number"
+                        step="0.01"
+                        value={formData.expected_monthly_maintenance}
+                        onChange={(e) => setFormData({ ...formData, expected_monthly_maintenance: e.target.value })}
+                        placeholder="e.g., 5000"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Agent Mode Fields */}
+              {/* Agent Mode Fields - Partner Details */}
               {isAgent && (
                 <div className="border-t pt-4 mt-4">
                   <h4 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    Partner Details (Agent Mode)
+                    Partner Details
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="partner_name">Partner/Owner Name *</Label>
                       <Input
@@ -512,19 +548,6 @@ const Vehicles = () => {
                         required={isAgent}
                         placeholder="Vehicle owner's name"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="office_rate_per_km">Office Rate (₹/km) *</Label>
-                      <Input
-                        id="office_rate_per_km"
-                        type="number"
-                        step="0.01"
-                        value={formData.office_rate_per_km}
-                        onChange={(e) => setFormData({ ...formData, office_rate_per_km: e.target.value })}
-                        required={isAgent}
-                        placeholder="e.g., 16"
-                      />
-                      <p className="text-xs text-muted-foreground">Rate paid by company</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="agent_commission_per_km">Your Commission (₹/km) *</Label>
@@ -538,7 +561,7 @@ const Vehicles = () => {
                         placeholder="e.g., 2"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Partner gets: ₹{((parseFloat(formData.office_rate_per_km) || 0) - (parseFloat(formData.agent_commission_per_km) || 0)).toFixed(2)}/km
+                        Partner gets: ₹{((parseFloat(formData.default_earning_value) || 0) - (parseFloat(formData.agent_commission_per_km) || 0)).toFixed(2)}/km
                       </p>
                     </div>
                   </div>
