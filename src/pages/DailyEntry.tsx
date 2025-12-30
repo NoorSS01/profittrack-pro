@@ -16,6 +16,7 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { DailyEntrySkeleton } from "@/components/skeletons/DailyEntrySkeleton";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useTutorial } from "@/components/OnboardingTutorial";
 
 // Admin emails - admins have no restrictions
 const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
@@ -38,6 +39,7 @@ const DailyEntry = () => {
   const navigate = useNavigate();
   const { formatCurrency } = useCurrency();
   const { limits, plan } = useSubscription();
+  const tutorial = useTutorial();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(false);
@@ -221,6 +223,9 @@ const DailyEntry = () => {
         title: "Success!",
         description: `Trip saved! ${autoCalculated.net_profit >= 0 ? "Profit" : "Loss"}: ₹${Math.abs(autoCalculated.net_profit).toFixed(2)}`,
       });
+
+      // Notify tutorial that entry was saved
+      tutorial?.notifyAction("entry-saved");
 
       // Redirect to Dashboard
       navigate("/");

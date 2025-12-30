@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { VehiclesSkeleton } from "@/components/skeletons/VehiclesSkeleton";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { useTutorial } from "@/components/OnboardingTutorial";
 
 interface Vehicle {
   id: string;
@@ -47,6 +48,7 @@ const Vehicles = () => {
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
   const { plan, limits } = useSubscription();
+  const tutorial = useTutorial();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,6 +145,9 @@ const Vehicles = () => {
           title: "Success",
           description: "Vehicle added successfully!",
         });
+
+        // Notify tutorial that vehicle was saved
+        tutorial?.notifyAction("vehicle-saved");
       }
 
       setDialogOpen(false);
@@ -231,6 +236,9 @@ const Vehicles = () => {
     }
     resetForm();
     setDialogOpen(true);
+
+    // Notify tutorial that add vehicle was clicked
+    tutorial?.notifyAction("add-vehicle-clicked");
   };
 
   if (loading) {
@@ -254,10 +262,10 @@ const Vehicles = () => {
               )}
             </p>
           </div>
-          
+
           {/* Action buttons */}
           <div className="flex items-center gap-2">
-            <Button 
+            <Button
               size="default"
               onClick={handleAddVehicleClick}
               variant={canAddVehicle ? "default" : "outline"}
@@ -336,8 +344,8 @@ const Vehicles = () => {
                       {vehicle.earning_type === "per_km"
                         ? "Per KM:"
                         : vehicle.earning_type === "per_trip"
-                        ? "Per Trip:"
-                        : "Earning:"}
+                          ? "Per Trip:"
+                          : "Earning:"}
                     </span>
                     <span className="font-semibold">{formatCurrency(vehicle.default_earning_value)}</span>
                   </div>
@@ -495,7 +503,7 @@ const Vehicles = () => {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction 
+              <AlertDialogAction
                 onClick={confirmDelete}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
