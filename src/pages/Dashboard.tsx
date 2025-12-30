@@ -92,8 +92,9 @@ const Dashboard = () => {
       const userHasEntries = entries && entries.length > 0;
       setHasEntries(userHasEntries);
 
-      // Show onboarding if user hasn't completed it and is new
-      if (!userHasVehicles || !userHasEntries) {
+      // Show onboarding only for trial users who haven't completed setup
+      // Trial users who are new (no vehicles or no entries) see the tutorial
+      if (plan === 'trial' && (!userHasVehicles || !userHasEntries)) {
         setShowOnboarding(true);
       }
     } catch (error) {
