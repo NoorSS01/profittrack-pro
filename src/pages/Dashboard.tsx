@@ -86,10 +86,10 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const today = format(new Date(), "yyyy-MM-dd");
-      
+
       let startDate: string;
       let endDate: string = today;
-      
+
       // Calculate date range based on selected period
       if (timePeriod === '1day') {
         startDate = today;
@@ -141,7 +141,7 @@ const Dashboard = () => {
           }]);
         } else if (timePeriod === '7days') {
           const groupedData: { [key: string]: ChartDataPoint } = {};
-          
+
           for (let i = 6; i >= 0; i--) {
             const date = format(subDays(new Date(), i), "yyyy-MM-dd");
             groupedData[date] = {
@@ -169,12 +169,12 @@ const Dashboard = () => {
         } else if (timePeriod === '1month') {
           // Group by day for 1 month view - only up to today, not future dates
           const dailyData: { [key: string]: ChartDataPoint } = {};
-          
+
           // Initialize days from month start to today only (no future dates)
           const monthStart = startOfMonth(new Date());
           const todayDate = new Date();
           const currentDay = todayDate.getDate();
-          
+
           for (let i = 0; i < currentDay; i++) {
             const date = format(new Date(monthStart.getFullYear(), monthStart.getMonth(), i + 1), "yyyy-MM-dd");
             dailyData[date] = {
@@ -201,7 +201,7 @@ const Dashboard = () => {
           setChartData(sortedData);
         } else if (timePeriod === '6months') {
           const monthlyData: { [key: string]: ChartDataPoint } = {};
-          
+
           for (let i = 5; i >= 0; i--) {
             const monthDate = subMonths(new Date(), i);
             const monthKey = format(monthDate, "yyyy-MM");
@@ -230,7 +230,7 @@ const Dashboard = () => {
         } else if (timePeriod === '1year') {
           // Group by month for 1 year view
           const monthlyData: { [key: string]: ChartDataPoint } = {};
-          
+
           for (let i = 11; i >= 0; i--) {
             const monthDate = subMonths(new Date(), i);
             const monthKey = format(monthDate, "yyyy-MM");
@@ -258,7 +258,7 @@ const Dashboard = () => {
         } else if (timePeriod === '5years') {
           // Group by year for 5 years view
           const yearlyData: { [key: string]: ChartDataPoint } = {};
-          
+
           for (let i = 4; i >= 0; i--) {
             const year = new Date().getFullYear() - i;
             yearlyData[year.toString()] = {
@@ -407,20 +407,20 @@ const Dashboard = () => {
     // Ultra-only periods: 1year, 5years, alltime
     const isUltraOnlyPeriod = value === '1year' || value === '5years' || value === 'alltime';
     const monthsRequired = value === '6months' ? 6 : value === '1month' ? 1 : 0;
-    
+
     if (isUltraOnlyPeriod && plan !== 'ultra' && plan !== 'trial') {
       trigger('error');
       navigate('/pricing');
       return;
     }
-    
+
     if (monthsRequired > limits.dashboardMonths && plan !== 'trial') {
       // Show upgrade prompt
       trigger('error');
       navigate('/pricing');
       return;
     }
-    
+
     trigger('selection');
     setTimePeriod(value as TimePeriod);
   };
@@ -433,21 +433,21 @@ const Dashboard = () => {
     if (plan === 'trial') return false;
     if (plan === 'ultra') return false;
     if (plan === 'expired') return period !== '1day';
-    
+
     // Ultra-only periods
     const isUltraOnlyPeriod = period === '1year' || period === '5years' || period === 'alltime';
     if (isUltraOnlyPeriod) return true;
-    
+
     // Basic plan: 1day, 7days, 1month allowed (not 6months)
     if (plan === 'basic') {
       return period === '6months';
     }
-    
+
     // Standard plan: 1day, 7days, 1month, 6months allowed
     if (plan === 'standard') {
       return false;
     }
-    
+
     return false;
   };
 
@@ -470,229 +470,231 @@ const Dashboard = () => {
               <TabsTrigger value="7days" className="text-xs sm:text-sm font-medium">
                 7 Days
               </TabsTrigger>
-              <TabsTrigger 
-                value="1month" 
+              <TabsTrigger
+                value="1month"
                 className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('1month') && "opacity-70")}
               >
                 {isTimePeriodLocked('1month') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
                 1M
               </TabsTrigger>
-              <TabsTrigger 
-                value="6months" 
+              <TabsTrigger
+                value="6months"
                 className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('6months') && "opacity-70")}
               >
                 {isTimePeriodLocked('6months') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
                 6M
               </TabsTrigger>
             </TabsList>
-            
-            {/* Ultra-only time periods */}
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 h-11 touch-feedback mt-2">
-              <TabsTrigger 
-                value="1year" 
-                className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('1year') && "opacity-70")}
-              >
-                {isTimePeriodLocked('1year') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
-                {!isTimePeriodLocked('1year') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
-                1 Yr
-              </TabsTrigger>
-              <TabsTrigger 
-                value="5years" 
-                className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('5years') && "opacity-70")}
-              >
-                {isTimePeriodLocked('5years') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
-                {!isTimePeriodLocked('5years') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
-                5 Yr
-              </TabsTrigger>
-              <TabsTrigger 
-                value="alltime" 
-                className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('alltime') && "opacity-70")}
-              >
-                {isTimePeriodLocked('alltime') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
-                {!isTimePeriodLocked('alltime') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
-                All
-              </TabsTrigger>
-            </TabsList>
+
+            {/* Ultra-only time periods - hidden for Basic Plan users to reduce complexity */}
+            {plan !== 'basic' && (
+              <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 h-11 touch-feedback mt-2">
+                <TabsTrigger
+                  value="1year"
+                  className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('1year') && "opacity-70")}
+                >
+                  {isTimePeriodLocked('1year') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                  {!isTimePeriodLocked('1year') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
+                  1 Yr
+                </TabsTrigger>
+                <TabsTrigger
+                  value="5years"
+                  className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('5years') && "opacity-70")}
+                >
+                  {isTimePeriodLocked('5years') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                  {!isTimePeriodLocked('5years') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
+                  5 Yr
+                </TabsTrigger>
+                <TabsTrigger
+                  value="alltime"
+                  className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('alltime') && "opacity-70")}
+                >
+                  {isTimePeriodLocked('alltime') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                  {!isTimePeriodLocked('alltime') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
+                  All
+                </TabsTrigger>
+              </TabsList>
+            )}
           </Tabs>
         </div>
 
-      {/* Period Stats */}
-      <div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          <StatCard
-            title={periodStats.profit >= 0 ? "Profit" : "Loss"}
-            value={formatCurrency(Math.abs(periodStats.profit))}
-            icon={periodStats.profit >= 0 ? TrendingUp : TrendingDown}
-            variant={periodStats.profit >= 0 ? "success" : "destructive"}
-            delay={0}
-          />
-          <StatCard
-            title="Earnings"
-            value={formatCurrency(periodStats.earnings)}
-            icon={DollarSign}
-            variant="primary"
-            delay={100}
-          />
-          <StatCard
-            title="Expenses"
-            value={formatCurrency(periodStats.expense)}
-            icon={TrendingDown}
-            variant="destructive"
-            delay={200}
-          />
-          <StatCard
-            title="Kilometers"
-            value={`${periodStats.km.toFixed(1)} km`}
-            icon={Gauge}
-            variant="default"
-            delay={300}
-          />
-        </div>
-      </div>
-
-      {/* Trend Chart - Hidden for 1 day view */}
-      {timePeriod !== '1day' && (() => {
-        // Calculate gradient stop position based on data range
-        const profits = chartData.map(d => d.profit);
-        const maxProfit = Math.max(...profits, 0);
-        const minProfit = Math.min(...profits, 0);
-        const range = maxProfit - minProfit;
-        // Calculate where zero line falls in the gradient (0% = top, 100% = bottom)
-        const zeroPosition = range > 0 ? (maxProfit / range) * 100 : 50;
-        
-        return (
-          <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
-            <CardHeader className="pb-2 md:pb-4">
-              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                <Calendar className="h-5 w-5" />
-                {getPeriodLabel()} Trend
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <ResponsiveContainer width="100%" height={220} className="md:h-[300px]">
-                <ComposedChart 
-                  data={chartData}
-                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                >
-                  <defs>
-                    <linearGradient id="profitLineGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22c55e" />
-                      <stop offset={`${zeroPosition}%`} stopColor="#22c55e" />
-                      <stop offset={`${zeroPosition}%`} stopColor="#ef4444" />
-                      <stop offset="100%" stopColor="#ef4444" />
-                    </linearGradient>
-                    <linearGradient id="profitAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.2} />
-                      <stop offset={`${zeroPosition}%`} stopColor="#22c55e" stopOpacity={0.05} />
-                      <stop offset={`${zeroPosition}%`} stopColor="#ef4444" stopOpacity={0.05} />
-                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0.2} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                    tickLine={{ stroke: 'hsl(var(--border))' }}
-                  />
-                  <YAxis 
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                    tickLine={{ stroke: 'hsl(var(--border))' }}
-                    width={50}
-                  />
-                  <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeWidth={1} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '12px',
-                      padding: '12px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                    }}
-                    labelStyle={{ 
-                      color: 'hsl(var(--foreground))',
-                      fontWeight: 600,
-                      marginBottom: '8px'
-                    }}
-                    formatter={(value: number) => [
-                      formatCurrency(Math.abs(value)),
-                      value >= 0 ? 'Profit' : 'Loss'
-                    ]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="profit"
-                    fill="url(#profitAreaGradient)"
-                    stroke="none"
-                    tooltipType="none"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="profit" 
-                    stroke="url(#profitLineGradient)"
-                    strokeWidth={2.5}
-                    dot={(props: any) => {
-                      const { cx, cy, payload } = props;
-                      if (cx === undefined || cy === undefined) return null;
-                      const isNegative = payload.profit < 0;
-                      return (
-                        <circle
-                          key={`dot-${props.index}`}
-                          cx={cx}
-                          cy={cy}
-                          r={4}
-                          fill={isNegative ? '#ef4444' : '#22c55e'}
-                          stroke="#fff"
-                          strokeWidth={2}
-                        />
-                      );
-                    }}
-                    activeDot={(props: any) => {
-                      const { cx, cy, payload } = props;
-                      const isNegative = payload.profit < 0;
-                      return (
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={6}
-                          fill={isNegative ? '#ef4444' : '#22c55e'}
-                          stroke="#fff"
-                          strokeWidth={2}
-                        />
-                      );
-                    }}
-                    name="Profit/Loss"
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        );
-      })()}
-
-      {/* Vehicles Performance Today */}
-      {vehiclePerformance.length > 0 && (
+        {/* Period Stats */}
         <div>
-          <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2 animate-fade-in" style={{ animationDelay: "400ms" }}>
-            <Truck className="h-6 w-6" />
-            Vehicles Performance Today
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {vehiclePerformance.map((vehicle, index) => (
-              <VehiclePerformanceCard
-                key={vehicle.vehicleId}
-                vehicleName={vehicle.vehicleName}
-                km={vehicle.km}
-                earnings={vehicle.earnings}
-                profit={vehicle.profit}
-                fuelUsed={vehicle.fuelUsed}
-                delay={400 + index * 50}
-              />
-            ))}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <StatCard
+              title={periodStats.profit >= 0 ? "Profit" : "Loss"}
+              value={formatCurrency(Math.abs(periodStats.profit))}
+              icon={periodStats.profit >= 0 ? TrendingUp : TrendingDown}
+              variant={periodStats.profit >= 0 ? "success" : "destructive"}
+              delay={0}
+            />
+            <StatCard
+              title="Earnings"
+              value={formatCurrency(periodStats.earnings)}
+              icon={DollarSign}
+              variant="primary"
+              delay={100}
+            />
+            <StatCard
+              title="Expenses"
+              value={formatCurrency(periodStats.expense)}
+              icon={TrendingDown}
+              variant="destructive"
+              delay={200}
+            />
+            <StatCard
+              title="Kilometers"
+              value={`${periodStats.km.toFixed(1)} km`}
+              icon={Gauge}
+              variant="default"
+              delay={300}
+            />
           </div>
         </div>
-      )}
+
+        {/* Trend Chart - Hidden for 1 day view */}
+        {timePeriod !== '1day' && (() => {
+          // Calculate gradient stop position based on data range
+          const profits = chartData.map(d => d.profit);
+          const maxProfit = Math.max(...profits, 0);
+          const minProfit = Math.min(...profits, 0);
+          const range = maxProfit - minProfit;
+          // Calculate where zero line falls in the gradient (0% = top, 100% = bottom)
+          const zeroPosition = range > 0 ? (maxProfit / range) * 100 : 50;
+
+          return (
+            <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
+              <CardHeader className="pb-2 md:pb-4">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                  <Calendar className="h-5 w-5" />
+                  {getPeriodLabel()} Trend
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <ResponsiveContainer width="100%" height={220} className="md:h-[300px]">
+                  <ComposedChart
+                    data={chartData}
+                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  >
+                    <defs>
+                      <linearGradient id="profitLineGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22c55e" />
+                        <stop offset={`${zeroPosition}%`} stopColor="#22c55e" />
+                        <stop offset={`${zeroPosition}%`} stopColor="#ef4444" />
+                        <stop offset="100%" stopColor="#ef4444" />
+                      </linearGradient>
+                      <linearGradient id="profitAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22c55e" stopOpacity={0.2} />
+                        <stop offset={`${zeroPosition}%`} stopColor="#22c55e" stopOpacity={0.05} />
+                        <stop offset={`${zeroPosition}%`} stopColor="#ef4444" stopOpacity={0.05} />
+                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0.2} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      tickLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <YAxis
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      tickLine={{ stroke: 'hsl(var(--border))' }}
+                      width={50}
+                    />
+                    <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeWidth={1} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      }}
+                      labelStyle={{
+                        color: 'hsl(var(--foreground))',
+                        fontWeight: 600,
+                        marginBottom: '8px'
+                      }}
+                      formatter={(value: number) => [
+                        formatCurrency(Math.abs(value)),
+                        value >= 0 ? 'Profit' : 'Loss'
+                      ]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="profit"
+                      fill="url(#profitAreaGradient)"
+                      stroke="none"
+                      tooltipType="none"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="profit"
+                      stroke="url(#profitLineGradient)"
+                      strokeWidth={2.5}
+                      dot={(props: any) => {
+                        const { cx, cy, payload } = props;
+                        if (cx === undefined || cy === undefined) return null;
+                        const isNegative = payload.profit < 0;
+                        return (
+                          <circle
+                            key={`dot-${props.index}`}
+                            cx={cx}
+                            cy={cy}
+                            r={4}
+                            fill={isNegative ? '#ef4444' : '#22c55e'}
+                            stroke="#fff"
+                            strokeWidth={2}
+                          />
+                        );
+                      }}
+                      activeDot={(props: any) => {
+                        const { cx, cy, payload } = props;
+                        const isNegative = payload.profit < 0;
+                        return (
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={6}
+                            fill={isNegative ? '#ef4444' : '#22c55e'}
+                            stroke="#fff"
+                            strokeWidth={2}
+                          />
+                        );
+                      }}
+                      name="Profit/Loss"
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {/* Vehicles Performance Today */}
+        {vehiclePerformance.length > 0 && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2 animate-fade-in" style={{ animationDelay: "400ms" }}>
+              <Truck className="h-6 w-6" />
+              Vehicles Performance Today
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {vehiclePerformance.map((vehicle, index) => (
+                <VehiclePerformanceCard
+                  key={vehicle.vehicleId}
+                  vehicleName={vehicle.vehicleName}
+                  km={vehicle.km}
+                  earnings={vehicle.earnings}
+                  profit={vehicle.profit}
+                  fuelUsed={vehicle.fuelUsed}
+                  delay={400 + index * 50}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </PullToRefresh>
   );

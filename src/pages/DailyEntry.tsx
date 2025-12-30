@@ -42,20 +42,20 @@ const DailyEntry = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [fuelPricePerLiter, setFuelPricePerLiter] = useState("100");
-  
+
   // Check if user is admin
   const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
-  
+
   // Calculate min date based on plan (admin gets unlimited)
   const getMinDate = () => {
     if (isAdmin) return format(subDays(new Date(), 365), "yyyy-MM-dd"); // Admin: 1 year back
     const maxDaysBack = limits.missedEntryDays || 7;
     return format(subDays(new Date(), maxDaysBack), "yyyy-MM-dd");
   };
-  
+
   const minDate = getMinDate();
   const maxDate = format(new Date(), "yyyy-MM-dd");
-  
+
   const [formData, setFormData] = useState({
     vehicle_id: "",
     entry_date: format(new Date(), "yyyy-MM-dd"),
@@ -84,11 +84,11 @@ const DailyEntry = () => {
       if (km > 0) {
         // Calculate fuel filled based on mileage
         const fuelFilled = km / selectedVehicle.mileage_kmpl;
-        
+
         // Calculate fuel cost
         const fuelPrice = parseFloat(fuelPricePerLiter) || 0;
         const fuelCost = fuelFilled * fuelPrice;
-        
+
         // Calculate trip earnings based on earning type
         let tripEarnings = 0;
         if (selectedVehicle.earning_type === "per_km") {
@@ -98,15 +98,15 @@ const DailyEntry = () => {
         } else if (selectedVehicle.earning_type === "custom") {
           tripEarnings = selectedVehicle.default_earning_value;
         }
-        
+
         // Calculate per-day costs from monthly costs
         const perDayEMI = (selectedVehicle.monthly_emi || 0) / 30;
         const perDayDriverSalary = (selectedVehicle.driver_monthly_salary || 0) / 30;
         const perDayMaintenance = (selectedVehicle.expected_monthly_maintenance || 0) / 30;
-        
+
         const totalExpenses = fuelCost + perDayEMI + perDayDriverSalary + perDayMaintenance;
         const netProfit = tripEarnings - totalExpenses;
-        
+
         setAutoCalculated({
           fuel_filled: fuelFilled,
           fuel_cost: fuelCost,
@@ -156,7 +156,7 @@ const DailyEntry = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.vehicle_id) {
       toast({
         title: "Error",
@@ -221,11 +221,16 @@ const DailyEntry = () => {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Vehicle & Date Selection */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
               Trip Details
             </CardTitle>
+            {plan === 'basic' && (
+              <Badge variant="outline" className="text-sm font-medium">
+                {format(new Date(), "dd/MM/yyyy")}
+              </Badge>
+            )}
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -252,37 +257,40 @@ const DailyEntry = () => {
                 </p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="entry_date">Date *</Label>
-              <Input
-                id="entry_date"
-                type="date"
-                value={formData.entry_date}
-                min={minDate}
-                max={maxDate}
-                onChange={(e) => {
-                  const selectedDate = e.target.value;
-                  // Validate date is within allowed range
-                  if (isBefore(parseISO(selectedDate), parseISO(minDate))) {
-                    toast({
-                      title: "Date Restricted",
-                      description: `Your ${plan} plan allows entries up to ${limits.missedEntryDays} days back. Upgrade for more.`,
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  setFormData({ ...formData, entry_date: selectedDate });
-                }}
-                required
-                className="h-12"
-              />
-              {!isAdmin && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  {plan === 'basic' ? 'Basic' : plan === 'standard' ? 'Standard' : plan === 'ultra' ? 'Ultra' : 'Trial'} plan: Can add entries up to {limits.missedEntryDays} days back
-                </p>
-              )}
-            </div>
+            {/* Hide date picker for Basic Plan - they use today's date automatically */}
+            {plan !== 'basic' && (
+              <div className="space-y-2">
+                <Label htmlFor="entry_date">Date *</Label>
+                <Input
+                  id="entry_date"
+                  type="date"
+                  value={formData.entry_date}
+                  min={minDate}
+                  max={maxDate}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value;
+                    // Validate date is within allowed range
+                    if (isBefore(parseISO(selectedDate), parseISO(minDate))) {
+                      toast({
+                        title: "Date Restricted",
+                        description: `Your ${plan} plan allows entries up to ${limits.missedEntryDays} days back. Upgrade for more.`,
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setFormData({ ...formData, entry_date: selectedDate });
+                  }}
+                  required
+                  className="h-12"
+                />
+                {!isAdmin && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    {plan === 'standard' ? 'Standard' : plan === 'ultra' ? 'Ultra' : 'Trial'} plan: Can add entries up to {limits.missedEntryDays} days back
+                  </p>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="kilometers">Kilometers *</Label>
               <Input
@@ -299,51 +307,55 @@ const DailyEntry = () => {
                 Enter kilometers traveled - everything else auto-calculates
               </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="fuel_price">Fuel Price per Liter (₹)</Label>
-              <Input
-                id="fuel_price"
-                type="number"
-                step="0.01"
-                value={fuelPricePerLiter}
-                onChange={(e) => setFuelPricePerLiter(e.target.value)}
-                placeholder="e.g., 100"
-                className="h-12"
-              />
-              <p className="text-xs text-muted-foreground">
-                Current market fuel price
-              </p>
-            </div>
+            {/* Hide Fuel Price input for Basic Plan - they can set it in Settings */}
+            {plan !== 'basic' && (
+              <div className="space-y-2">
+                <Label htmlFor="fuel_price">Fuel Price per Liter (₹)</Label>
+                <Input
+                  id="fuel_price"
+                  type="number"
+                  step="0.01"
+                  value={fuelPricePerLiter}
+                  onChange={(e) => setFuelPricePerLiter(e.target.value)}
+                  placeholder="e.g., 100"
+                  className="h-12"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Current market fuel price
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Calculation Summary */}
-        <Card className={autoCalculated.net_profit >= 0 ? "border-success/20 bg-success/5" : "border-destructive/20 bg-destructive/5"}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center p-4 bg-background rounded-lg">
-              <span className="text-lg font-medium">Total Expenses:</span>
-              <span className="text-2xl font-bold text-destructive">
-                {formatCurrency(autoCalculated.total_expenses)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-4 bg-background rounded-lg">
-              <span className="text-lg font-medium">Net Profit/Loss:</span>
-              <span
-                className={`text-2xl font-bold ${
-                  autoCalculated.net_profit >= 0 ? "text-success" : "text-destructive"
-                }`}
-              >
-                {formatCurrency(autoCalculated.net_profit)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Calculation Summary - Hidden for Basic Plan to reduce complexity */}
+        {plan !== 'basic' && (
+          <Card className={autoCalculated.net_profit >= 0 ? "border-success/20 bg-success/5" : "border-destructive/20 bg-destructive/5"}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center p-4 bg-background rounded-lg">
+                <span className="text-lg font-medium">Total Expenses:</span>
+                <span className="text-2xl font-bold text-destructive">
+                  {formatCurrency(autoCalculated.total_expenses)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-4 bg-background rounded-lg">
+                <span className="text-lg font-medium">Net Profit/Loss:</span>
+                <span
+                  className={`text-2xl font-bold ${autoCalculated.net_profit >= 0 ? "text-success" : "text-destructive"
+                    }`}
+                >
+                  {formatCurrency(autoCalculated.net_profit)}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Submit Button */}
         <Button type="submit" size="lg" className="w-full h-14 text-lg" disabled={loading}>
