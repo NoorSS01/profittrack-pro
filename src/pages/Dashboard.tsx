@@ -15,7 +15,7 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { useHaptic } from "@/hooks/use-haptic";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 import { cn } from "@/lib/utils";
-import { OnboardingTutorial } from "@/components/OnboardingTutorial";
+import { TutorialProvider, useTutorial } from "@/components/OnboardingTutorial";
 
 interface ChartDataPoint {
   date: string;
@@ -409,17 +409,6 @@ const Dashboard = () => {
     return <DashboardSkeleton />;
   }
 
-  // Show onboarding tutorial for new users
-  if (showOnboarding) {
-    return (
-      <OnboardingTutorial
-        hasVehicles={hasVehicles}
-        hasEntries={hasEntries}
-        onComplete={() => setShowOnboarding(false)}
-      />
-    );
-  }
-
   const getPeriodLabel = () => {
     switch (timePeriod) {
       case '1day':
@@ -507,7 +496,7 @@ const Dashboard = () => {
     return false;
   };
 
-  return (
+  const content = (
     <PullToRefresh onRefresh={handleRefresh} className="min-h-[calc(100vh-8rem)] lg:min-h-0">
       <div className="space-y-4 md:space-y-6 pb-8 page-transition">
         {/* Header */}
@@ -754,6 +743,22 @@ const Dashboard = () => {
       </div>
     </PullToRefresh>
   );
+
+  // Wrap with TutorialProvider for trial users who need onboarding
+  if (showOnboarding) {
+    return (
+      <TutorialProvider
+        isActive={showOnboarding}
+        hasVehicles={hasVehicles}
+        hasEntries={hasEntries}
+        onComplete={() => setShowOnboarding(false)}
+      >
+        {content}
+      </TutorialProvider>
+    );
+  }
+
+  return content;
 };
 
 export default Dashboard;
