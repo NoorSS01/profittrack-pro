@@ -7,15 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings as SettingsIcon, DollarSign, CalendarDays, ArrowLeft, Fuel } from "lucide-react";
+import { Settings as SettingsIcon, DollarSign, CalendarDays, ArrowLeft, Fuel, Truck, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { SettingsSkeleton } from "@/components/skeletons/SettingsSkeleton";
+import { useUserType } from "@/contexts/UserTypeContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { currency, setCurrency } = useCurrency();
+  const { userType, setUserType, canSelectAgentMode } = useUserType();
+  const { plan } = useSubscription();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -241,6 +245,64 @@ const Settings = () => {
           </form>
         </CardContent>
       </Card>
+
+      {/* User Type - Only for Standard/Ultra */}
+      {canSelectAgentMode && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Operating Mode
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Select how you operate your transport business
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={() => setUserType("owner")}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${userType === "owner"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Truck className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Vehicle Owner</h4>
+                    <p className="text-xs text-muted-foreground">I own the vehicles</p>
+                  </div>
+                </div>
+              </button>
+              <button
+                onClick={() => setUserType("agent")}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${userType === "agent"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-500/10">
+                    <Users className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Agent / Broker</h4>
+                    <p className="text-xs text-muted-foreground">I manage delivery partners</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+            {userType === "agent" && (
+              <p className="text-xs text-muted-foreground bg-amber-500/10 p-3 rounded-lg">
+                💡 In Agent mode, you can add Partner details and Commission when adding vehicles.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -7,6 +7,7 @@ import { AuthProvider } from "./components/AuthProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SubscriptionGuard } from "./components/SubscriptionGuard";
 import { SubscriptionProvider } from "./contexts/SubscriptionContext";
+import { UserTypeProvider } from "./contexts/UserTypeContext";
 import { Layout } from "./components/Layout";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { ChatProvider } from "./contexts/ChatContext";
@@ -34,118 +35,120 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <SubscriptionProvider>
-            <ChatProvider>
-              <ScrollToTop />
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/pricing" element={
-                  <ProtectedRoute>
-                    <Pricing />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin" element={
-                  <ProtectedRoute>
-                    <Admin />
-                  </ProtectedRoute>
-                } />
-                <Route
-                  path="/"
-                  element={
+            <UserTypeProvider>
+              <ChatProvider>
+                <ScrollToTop />
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/pricing" element={
                     <ProtectedRoute>
-                      <SubscriptionGuard>
-                        <Layout>
-                          <Dashboard />
-                        </Layout>
-                      </SubscriptionGuard>
+                      <Pricing />
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/vehicles"
-                  element={
+                  } />
+                  <Route path="/admin" element={
                     <ProtectedRoute>
-                      <SubscriptionGuard>
-                        <Layout>
-                          <Vehicles />
-                        </Layout>
-                      </SubscriptionGuard>
+                      <Admin />
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/daily-entry"
-                  element={
-                    <ProtectedRoute>
-                      <SubscriptionGuard>
-                        <Layout>
-                          <DailyEntry />
-                        </Layout>
-                      </SubscriptionGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/reports"
-                  element={
-                    <ProtectedRoute>
-                      <SubscriptionGuard>
-                        <Layout>
-                          <Reports />
-                        </Layout>
-                      </SubscriptionGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/trip-history"
-                  element={
-                    <ProtectedRoute>
-                      <SubscriptionGuard>
-                        <Layout>
-                          <TripHistory />
-                        </Layout>
-                      </SubscriptionGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <SubscriptionGuard>
-                        <Layout>
-                          <Settings />
-                        </Layout>
-                      </SubscriptionGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/account"
-                  element={
-                    <ProtectedRoute>
-                      <SubscriptionGuard>
-                        <Layout>
-                          <Account />
-                        </Layout>
-                      </SubscriptionGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/legal/:page"
-                  element={
-                    <ProtectedRoute>
-                      <SubscriptionGuard>
-                        <Layout>
-                          <Legal />
-                        </Layout>
-                      </SubscriptionGuard>
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
-            </ChatProvider>
+                  } />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <SubscriptionGuard>
+                          <Layout>
+                            <Dashboard />
+                          </Layout>
+                        </SubscriptionGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/vehicles"
+                    element={
+                      <ProtectedRoute>
+                        <SubscriptionGuard>
+                          <Layout>
+                            <Vehicles />
+                          </Layout>
+                        </SubscriptionGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/daily-entry"
+                    element={
+                      <ProtectedRoute>
+                        <SubscriptionGuard>
+                          <Layout>
+                            <DailyEntry />
+                          </Layout>
+                        </SubscriptionGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/reports"
+                    element={
+                      <ProtectedRoute>
+                        <SubscriptionGuard>
+                          <Layout>
+                            <Reports />
+                          </Layout>
+                        </SubscriptionGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/trip-history"
+                    element={
+                      <ProtectedRoute>
+                        <SubscriptionGuard>
+                          <Layout>
+                            <TripHistory />
+                          </Layout>
+                        </SubscriptionGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <SubscriptionGuard>
+                          <Layout>
+                            <Settings />
+                          </Layout>
+                        </SubscriptionGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/account"
+                    element={
+                      <ProtectedRoute>
+                        <SubscriptionGuard>
+                          <Layout>
+                            <Account />
+                          </Layout>
+                        </SubscriptionGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/legal/:page"
+                    element={
+                      <ProtectedRoute>
+                        <SubscriptionGuard>
+                          <Layout>
+                            <Legal />
+                          </Layout>
+                        </SubscriptionGuard>
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+              </ChatProvider>
+            </UserTypeProvider>
           </SubscriptionProvider>
         </AuthProvider>
       </BrowserRouter>

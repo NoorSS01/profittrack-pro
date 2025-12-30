@@ -21,12 +21,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Truck, Plus, Edit, Trash2, User, DollarSign, Gauge, Lock, Crown } from "lucide-react";
+import { Truck, Plus, Edit, Trash2, User, Users, DollarSign, Gauge, Lock, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { VehiclesSkeleton } from "@/components/skeletons/VehiclesSkeleton";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { useTutorial } from "@/components/OnboardingTutorial";
+import { useUserType } from "@/contexts/UserTypeContext";
 
 interface Vehicle {
   id: string;
@@ -41,6 +42,9 @@ interface Vehicle {
   expected_monthly_maintenance: number;
   notes: string;
   is_active: boolean;
+  partner_name?: string;
+  office_rate_per_km?: number;
+  agent_commission_per_km?: number;
 }
 
 const Vehicles = () => {
@@ -48,6 +52,7 @@ const Vehicles = () => {
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
   const { plan, limits } = useSubscription();
+  const { isAgent } = useUserType();
   const tutorial = useTutorial();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -72,6 +77,10 @@ const Vehicles = () => {
     monthly_emi: "",
     expected_monthly_maintenance: "",
     notes: "",
+    // Agent mode fields
+    partner_name: "",
+    office_rate_per_km: "",
+    agent_commission_per_km: "",
   });
 
   useEffect(() => {
@@ -122,6 +131,10 @@ const Vehicles = () => {
         monthly_emi: parseFloat(formData.monthly_emi) || 0,
         expected_monthly_maintenance: parseFloat(formData.expected_monthly_maintenance) || 0,
         notes: formData.notes,
+        // Agent mode fields
+        partner_name: isAgent ? formData.partner_name : null,
+        office_rate_per_km: isAgent ? (parseFloat(formData.office_rate_per_km) || null) : null,
+        agent_commission_per_km: isAgent ? (parseFloat(formData.agent_commission_per_km) || null) : null,
       };
 
       if (editingVehicle) {
@@ -175,6 +188,9 @@ const Vehicles = () => {
       monthly_emi: vehicle.monthly_emi?.toString() || "",
       expected_monthly_maintenance: vehicle.expected_monthly_maintenance?.toString() || "",
       notes: vehicle.notes || "",
+      partner_name: vehicle.partner_name || "",
+      office_rate_per_km: vehicle.office_rate_per_km?.toString() || "",
+      agent_commission_per_km: vehicle.agent_commission_per_km?.toString() || "",
     });
     setDialogOpen(true);
   };
@@ -221,6 +237,9 @@ const Vehicles = () => {
       monthly_emi: "",
       expected_monthly_maintenance: "",
       notes: "",
+      partner_name: "",
+      office_rate_per_km: "",
+      agent_commission_per_km: "",
     });
   };
 
@@ -475,6 +494,57 @@ const Vehicles = () => {
                   />
                 </div>
               </div>
+
+              {/* Agent Mode Fields */}
+              {isAgent && (
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Partner Details (Agent Mode)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="partner_name">Partner/Owner Name *</Label>
+                      <Input
+                        id="partner_name"
+                        value={formData.partner_name}
+                        onChange={(e) => setFormData({ ...formData, partner_name: e.target.value })}
+                        required={isAgent}
+                        placeholder="Vehicle owner's name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="office_rate_per_km">Office Rate (₹/km) *</Label>
+                      <Input
+                        id="office_rate_per_km"
+                        type="number"
+                        step="0.01"
+                        value={formData.office_rate_per_km}
+                        onChange={(e) => setFormData({ ...formData, office_rate_per_km: e.target.value })}
+                        required={isAgent}
+                        placeholder="e.g., 16"
+                      />
+                      <p className="text-xs text-muted-foreground">Rate paid by company</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="agent_commission_per_km">Your Commission (₹/km) *</Label>
+                      <Input
+                        id="agent_commission_per_km"
+                        type="number"
+                        step="0.01"
+                        value={formData.agent_commission_per_km}
+                        onChange={(e) => setFormData({ ...formData, agent_commission_per_km: e.target.value })}
+                        required={isAgent}
+                        placeholder="e.g., 2"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Partner gets: ₹{((parseFloat(formData.office_rate_per_km) || 0) - (parseFloat(formData.agent_commission_per_km) || 0)).toFixed(2)}/km
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea

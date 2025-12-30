@@ -92,6 +92,7 @@ export type Database = {
           fuel_price_per_liter: number | null
           id: string
           updated_at: string | null
+          user_type: string | null
         }
         Insert: {
           billing_cycle_start?: number | null
@@ -102,6 +103,7 @@ export type Database = {
           fuel_price_per_liter?: number | null
           id: string
           updated_at?: string | null
+          user_type?: string | null
         }
         Update: {
           billing_cycle_start?: number | null
@@ -112,6 +114,7 @@ export type Database = {
           fuel_price_per_liter?: number | null
           id?: string
           updated_at?: string | null
+          user_type?: string | null
         }
         Relationships: []
       }
@@ -132,6 +135,9 @@ export type Database = {
           user_id: string
           vehicle_name: string
           vehicle_type: string
+          partner_name: string | null
+          office_rate_per_km: number | null
+          agent_commission_per_km: number | null
         }
         Insert: {
           created_at?: string | null
@@ -149,6 +155,9 @@ export type Database = {
           user_id: string
           vehicle_name: string
           vehicle_type: string
+          partner_name?: string | null
+          office_rate_per_km?: number | null
+          agent_commission_per_km?: number | null
         }
         Update: {
           created_at?: string | null
@@ -166,6 +175,9 @@ export type Database = {
           user_id?: string
           vehicle_name?: string
           vehicle_type?: string
+          partner_name?: string | null
+          office_rate_per_km?: number | null
+          agent_commission_per_km?: number | null
         }
         Relationships: []
       }
