@@ -162,15 +162,45 @@ const Dashboard = () => {
         .lte("entry_date", endDate)
         .order("entry_date", { ascending: true });
 
-      // Calculate period totals
+      // Fetch all vehicles to detect agent-managed ones
+      const { data: allVehicles } = await supabase
+        .from("vehicles")
+        .select("id, partner_name, agent_commission_per_km, office_rate_per_km")
+        .eq("user_id", user?.id);
+
+      // Create a map of vehicle_id to vehicle data for quick lookup
+      const vehicleMap = new Map();
+      allVehicles?.forEach(v => vehicleMap.set(v.id, v));
+
+      // Calculate period totals - recalculate for agent vehicles
       if (periodData && periodData.length > 0) {
         const totals = periodData.reduce(
-          (acc, entry) => ({
-            profit: acc.profit + Number(entry.net_profit),
-            expense: acc.expense + Number(entry.total_expenses),
-            earnings: acc.earnings + Number(entry.trip_earnings),
-            km: acc.km + Number(entry.kilometers),
-          }),
+          (acc, entry) => {
+            const vehicle = vehicleMap.get(entry.vehicle_id);
+            const isAgentVehicle = vehicle?.partner_name && vehicle?.agent_commission_per_km;
+
+            if (isAgentVehicle) {
+              // AGENT MODE: Commission = Profit, no expenses
+              const commission = Number(entry.kilometers) * (vehicle.agent_commission_per_km || 0);
+              const officeRate = vehicle.office_rate_per_km || entry.trip_earnings / entry.kilometers;
+              const totalFromOffice = Number(entry.kilometers) * officeRate;
+
+              return {
+                profit: acc.profit + commission, // Commission is the profit
+                expense: acc.expense, // No expenses for agent
+                earnings: acc.earnings + totalFromOffice, // Total from office
+                km: acc.km + Number(entry.kilometers),
+              };
+            } else {
+              // OWNER MODE: Normal calculation
+              return {
+                profit: acc.profit + Number(entry.net_profit),
+                expense: acc.expense + Number(entry.total_expenses),
+                earnings: acc.earnings + Number(entry.trip_earnings),
+                km: acc.km + Number(entry.kilometers),
+              };
+            }
+          },
           { profit: 0, expense: 0, earnings: 0, km: 0 }
         );
         setPeriodStats(totals);
@@ -370,18 +400,38 @@ const Dashboard = () => {
         .eq("is_active", true);
 
       if (vehicles && vehicles.length > 0 && todayData) {
-        const performance: VehiclePerformance[] = vehicles.map((vehicle) => {
+        const performance: VehiclePerformance[] = vehicles.map((vehicle: any) => {
           const vehicleEntries = todayData.filter(
             (entry) => entry.vehicle_id === vehicle.id
           );
 
+          // Check if this is an agent-managed vehicle
+          const isAgentVehicle = vehicle.partner_name && vehicle.agent_commission_per_km;
+
           const totals = vehicleEntries.reduce(
-            (acc, entry) => ({
-              km: acc.km + Number(entry.kilometers),
-              earnings: acc.earnings + Number(entry.trip_earnings),
-              profit: acc.profit + Number(entry.net_profit),
-              fuelUsed: acc.fuelUsed + Number(entry.fuel_filled),
-            }),
+            (acc, entry) => {
+              if (isAgentVehicle) {
+                // AGENT MODE: Commission = Profit
+                const commission = Number(entry.kilometers) * (vehicle.agent_commission_per_km || 0);
+                const officeRate = vehicle.office_rate_per_km || vehicle.default_earning_value;
+                const totalFromOffice = Number(entry.kilometers) * officeRate;
+
+                return {
+                  km: acc.km + Number(entry.kilometers),
+                  earnings: acc.earnings + totalFromOffice,
+                  profit: acc.profit + commission, // Commission is profit
+                  fuelUsed: 0, // Agent doesn't care about fuel
+                };
+              } else {
+                // OWNER MODE: Normal calculation
+                return {
+                  km: acc.km + Number(entry.kilometers),
+                  earnings: acc.earnings + Number(entry.trip_earnings),
+                  profit: acc.profit + Number(entry.net_profit),
+                  fuelUsed: acc.fuelUsed + Number(entry.fuel_filled),
+                };
+              }
+            },
             { km: 0, earnings: 0, profit: 0, fuelUsed: 0 }
           );
 
