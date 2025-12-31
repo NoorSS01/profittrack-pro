@@ -52,6 +52,7 @@ const DailyEntry = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [fuelPricePerLiter, setFuelPricePerLiter] = useState("100");
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const [existingEntryCount, setExistingEntryCount] = useState(0); // Track entries for vehicle/date
 
   // Check if user is admin
   const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
@@ -153,9 +154,13 @@ const DailyEntry = () => {
           }
 
           // Calculate per-day costs from monthly costs
-          const perDayEMI = (selectedVehicle.monthly_emi || 0) / 30;
-          const perDayDriverSalary = (selectedVehicle.driver_monthly_salary || 0) / 30;
-          const perDayMaintenance = (selectedVehicle.expected_monthly_maintenance || 0) / 30;
+          // IMPORTANT: Only add EMI/Driver/Maintenance on FIRST entry of the day
+          // Subsequent entries for same vehicle/date only add fuel cost
+          const isSubsequentEntry = existingEntryCount > 0;
+
+          const perDayEMI = isSubsequentEntry ? 0 : (selectedVehicle.monthly_emi || 0) / 30;
+          const perDayDriverSalary = isSubsequentEntry ? 0 : (selectedVehicle.driver_monthly_salary || 0) / 30;
+          const perDayMaintenance = isSubsequentEntry ? 0 : (selectedVehicle.expected_monthly_maintenance || 0) / 30;
 
           const totalExpenses = fuelCost + perDayEMI + perDayDriverSalary + perDayMaintenance;
           const netProfit = tripEarnings - totalExpenses;
@@ -213,6 +218,34 @@ const DailyEntry = () => {
     }
   };
 
+  // Check if there are existing entries for the selected vehicle on the selected date
+  const checkExistingEntries = async (vehicleId: string, date: string) => {
+    if (!vehicleId || !date || !user) {
+      setExistingEntryCount(0);
+      return;
+    }
+
+    try {
+      const { count, error } = await supabase
+        .from("daily_entries")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("vehicle_id", vehicleId)
+        .eq("entry_date", date);
+
+      if (error) throw error;
+      setExistingEntryCount(count || 0);
+    } catch (error) {
+      console.error("Error checking existing entries:", error);
+      setExistingEntryCount(0);
+    }
+  };
+
+  // Check existing entries when vehicle or date changes
+  useEffect(() => {
+    checkExistingEntries(formData.vehicle_id, formData.entry_date);
+  }, [formData.vehicle_id, formData.entry_date, user]);
+
   const handleVehicleChange = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
     setSelectedVehicle(vehicle || null);
@@ -226,6 +259,16 @@ const DailyEntry = () => {
       toast({
         title: "Error",
         description: "Please select a vehicle",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Basic Plan: Block multiple entries for same vehicle on same day
+    if (plan === 'basic' && existingEntryCount > 0) {
+      toast({
+        title: "Basic Plan Limit",
+        description: "Basic plan allows only 1 entry per vehicle per day. Upgrade to Standard for multiple entries.",
         variant: "destructive",
       });
       return;
@@ -365,6 +408,22 @@ const DailyEntry = () => {
                 <p className="text-xs text-muted-foreground mt-1">
                   Mileage: {selectedVehicle.mileage_kmpl} km/L | Earning: {selectedVehicle.earning_type}
                 </p>
+              )}
+              {/* Show info when adding subsequent entry */}
+              {existingEntryCount > 0 && plan !== 'basic' && (
+                <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    ℹ️ This is entry #{existingEntryCount + 1} for this vehicle today. Only fuel cost will be added (EMI, Driver, Maintenance already calculated in first entry).
+                  </p>
+                </div>
+              )}
+              {/* Show warning for Basic plan */}
+              {existingEntryCount > 0 && plan === 'basic' && (
+                <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <p className="text-xs text-destructive">
+                    ⚠️ Basic plan allows only 1 entry per vehicle per day. Upgrade to Standard for multiple entries.
+                  </p>
+                </div>
               )}
             </div>
             {/* Hide date picker for Basic Plan - they use today's date automatically */}

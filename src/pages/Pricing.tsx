@@ -56,16 +56,16 @@ const Pricing = () => {
     setShowPaymentDialog(true);
     setPaymentSubmitted(false);
     setIsWaitingForPayment(true);
-    
+
     // Open UPI payment link
     const upiLink = `upi://pay?pa=${UPI_ID}&pn=TransportPro&am=${price}&cu=INR&tn=${planName}%20Plan`;
     window.open(upiLink, '_blank');
-    
+
     // Clear any existing timer
     if (waitingTimerRef.current) {
       clearTimeout(waitingTimerRef.current);
     }
-    
+
     // After 13 seconds, show the "I've Paid" form
     waitingTimerRef.current = setTimeout(() => {
       setIsWaitingForPayment(false);
@@ -133,33 +133,42 @@ const Pricing = () => {
   };
 
   const plans = [
-    { name: "Basic", id: "basic", price: billingCycle === "monthly" ? PLAN_PRICES.basic.monthly : PLAN_PRICES.basic.yearly,
+    {
+      name: "Basic", id: "basic", price: billingCycle === "monthly" ? PLAN_PRICES.basic.monthly : PLAN_PRICES.basic.yearly,
       period: billingCycle === "monthly" ? "/month" : "/year", description: "For individual owners",
       icon: Truck, color: "text-blue-500", bgColor: "bg-blue-500/10", borderColor: "border-blue-500/30",
       gradientFrom: "from-blue-500/5", popular: false, buttonText: "Get Basic",
       features: [{ text: "1 Vehicle", included: true }, { text: "10 Days Trip History", included: true },
-        { text: "1 Month Dashboard View", included: true }, { text: "Add Entries (3 days back)", included: true },
-        { text: "Basic Reports", included: true },
-        { text: "AI Assistant", included: false }, { text: "Export Reports", included: false },
-        { text: "Priority Support", included: false }] },
-    { name: "Standard", id: "standard", price: billingCycle === "monthly" ? PLAN_PRICES.standard.monthly : PLAN_PRICES.standard.yearly,
+      { text: "1 Month Dashboard View", included: true }, { text: "Add Entries (3 days back)", included: true },
+      { text: "1 Entry per Vehicle/Day", included: true },
+      { text: "Basic Reports", included: true },
+      { text: "Agent Mode (Broker)", included: false }, { text: "Multiple Entries/Day", included: false },
+      { text: "AI Assistant", included: false }, { text: "Priority Support", included: false }]
+    },
+    {
+      name: "Standard", id: "standard", price: billingCycle === "monthly" ? PLAN_PRICES.standard.monthly : PLAN_PRICES.standard.yearly,
       period: billingCycle === "monthly" ? "/month" : "/year", description: "For growing businesses",
       icon: Zap, color: "text-primary", bgColor: "bg-primary/10", borderColor: "border-primary/40",
       gradientFrom: "from-primary/5", popular: true, buttonText: "Get Standard",
       features: [{ text: "5 Vehicles", included: true }, { text: "90 Days Trip History", included: true },
-        { text: "6 Month Dashboard View", included: true }, { text: "Add Entries (7 days back)", included: true },
-        { text: "Full Reports", included: true },
-        { text: "AI Assistant (30/day)", included: true }, { text: "Export Reports", included: false },
-        { text: "Priority Support", included: false }] },
-    { name: "Ultra", id: "ultra", price: billingCycle === "monthly" ? PLAN_PRICES.ultra.monthly : PLAN_PRICES.ultra.yearly,
+      { text: "6 Month Dashboard View", included: true }, { text: "Add Entries (7 days back)", included: true },
+      { text: "Multiple Entries/Day", included: true }, { text: "Agent Mode (Broker)", included: true },
+      { text: "Full Reports", included: true },
+      { text: "AI Assistant (30/day)", included: true }, { text: "Export Reports", included: false },
+      { text: "Priority Support", included: false }]
+    },
+    {
+      name: "Ultra", id: "ultra", price: billingCycle === "monthly" ? PLAN_PRICES.ultra.monthly : PLAN_PRICES.ultra.yearly,
       period: billingCycle === "monthly" ? "/month" : "/year", description: "For fleet owners",
       icon: Crown, color: "text-amber-500", bgColor: "bg-amber-500/10", borderColor: "border-amber-500/40",
       gradientFrom: "from-amber-500/5", popular: false, buttonText: "Get Ultra",
       features: [{ text: "Unlimited Vehicles", included: true }, { text: "Unlimited Trip History", included: true },
-        { text: "1yr, 5yr & All-time View", included: true }, { text: "Add Entries (30 days back)", included: true },
-        { text: "Full Reports", included: true },
-        { text: "AI Assistant (Higher limits)", included: true }, { text: "Export (PDF/Excel)", included: true },
-        { text: "Priority Support", included: true }] },
+      { text: "1yr, 5yr & All-time View", included: true }, { text: "Add Entries (30 days back)", included: true },
+      { text: "Multiple Entries/Day", included: true }, { text: "Agent Mode (Broker)", included: true },
+      { text: "Full Reports", included: true },
+      { text: "AI Assistant (Higher limits)", included: true }, { text: "Export (PDF/Excel)", included: true },
+      { text: "Priority Support", included: true }]
+    },
   ];
 
   const faqs = [
@@ -184,7 +193,7 @@ const Pricing = () => {
             </Button>
           </div>
         )}
-        
+
         <div className="text-center mb-5 mt-2">
           <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-2">Choose Your Plan</h1>
           <p className="text-muted-foreground text-sm md:text-lg max-w-2xl mx-auto">
@@ -270,15 +279,15 @@ const Pricing = () => {
               )}
             </DialogTitle>
             <DialogDescription>
-              {paymentSubmitted 
-                ? "Our team will verify and activate your plan within 24 hours." 
-                : isWaitingForPayment 
+              {paymentSubmitted
+                ? "Our team will verify and activate your plan within 24 hours."
+                : isWaitingForPayment
                   ? `Pay ₹${selectedPlan?.price.toLocaleString()} for ${selectedPlan?.name} plan`
                   : `Pay ₹${selectedPlan?.price.toLocaleString()} for ${selectedPlan?.name} plan (${billingCycle})`
               }
             </DialogDescription>
           </DialogHeader>
-          
+
           {/* Payment Submitted Success State */}
           {paymentSubmitted ? (
             <div className="space-y-4 py-4">
@@ -301,7 +310,7 @@ const Pricing = () => {
                   {/* Pulsing ring animation */}
                   <div className="absolute inset-0 rounded-2xl border-2 border-primary/30 animate-ping" style={{ animationDuration: '2s' }} />
                 </div>
-                
+
                 <div className="mt-6 text-center space-y-2">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -309,24 +318,24 @@ const Pricing = () => {
                   </div>
                   <p className="text-sm text-muted-foreground">Complete the payment in your UPI app</p>
                 </div>
-                
+
                 {/* UPI ID Display */}
                 <div className="mt-4 bg-muted/50 px-4 py-2 rounded-lg">
                   <p className="text-xs text-muted-foreground">Pay to UPI ID:</p>
                   <p className="font-mono text-sm font-medium">{UPI_ID}</p>
                 </div>
-                
+
                 {/* Amount Display */}
                 <div className="mt-3 text-center">
                   <p className="text-2xl font-bold text-primary">₹{selectedPlan?.price.toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">{selectedPlan?.name} Plan • {billingCycle}</p>
                 </div>
               </div>
-              
+
               {/* Skip waiting button */}
-              <Button 
-                variant="ghost" 
-                className="w-full text-muted-foreground" 
+              <Button
+                variant="ghost"
+                className="w-full text-muted-foreground"
                 onClick={() => setIsWaitingForPayment(false)}
               >
                 Already paid? Click here

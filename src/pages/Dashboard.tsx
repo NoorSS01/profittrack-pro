@@ -5,7 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, Gauge, Calendar, Truck, Lock, Crown } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Gauge, Calendar, Truck, Lock, Crown, Zap } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart } from "recharts";
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -576,7 +576,7 @@ const Dashboard = () => {
                 value="6months"
                 className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('6months') && "opacity-70")}
               >
-                {isTimePeriodLocked('6months') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                {isTimePeriodLocked('6months') && <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />}
                 6M
               </TabsTrigger>
             </TabsList>
@@ -588,7 +588,7 @@ const Dashboard = () => {
                   value="1year"
                   className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('1year') && "opacity-70")}
                 >
-                  {isTimePeriodLocked('1year') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                  {isTimePeriodLocked('1year') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
                   {!isTimePeriodLocked('1year') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
                   1 Yr
                 </TabsTrigger>
@@ -596,7 +596,7 @@ const Dashboard = () => {
                   value="5years"
                   className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('5years') && "opacity-70")}
                 >
-                  {isTimePeriodLocked('5years') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                  {isTimePeriodLocked('5years') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
                   {!isTimePeriodLocked('5years') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
                   5 Yr
                 </TabsTrigger>
@@ -604,7 +604,7 @@ const Dashboard = () => {
                   value="alltime"
                   className={cn("text-xs sm:text-sm font-medium gap-1", isTimePeriodLocked('alltime') && "opacity-70")}
                 >
-                  {isTimePeriodLocked('alltime') && <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                  {isTimePeriodLocked('alltime') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
                   {!isTimePeriodLocked('alltime') && <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />}
                   All
                 </TabsTrigger>

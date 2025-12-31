@@ -141,29 +141,40 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
+      // Calculate trial status using start of day for consistent comparison
       const createdAt = parseISO(profile.created_at);
-      const daysSinceCreation = differenceInDays(new Date(), createdAt);
+      const today = new Date();
+      const daysSinceCreation = differenceInDays(today, createdAt);
       const trialDaysLeft = Math.max(0, FREE_TRIAL_DAYS - daysSinceCreation);
       const isTrialActive = trialDaysLeft > 0;
 
       // Check if user has an active subscription
       const subscriptionPlan = profile.subscription_plan as PlanType | null;
       const subscriptionEndDate = profile.subscription_end_date;
-      
+
       let currentPlan: PlanType;
-      
+
+      // Priority: Active subscription > Trial > Expired
       if (subscriptionPlan && subscriptionEndDate) {
         const endDate = parseISO(subscriptionEndDate);
-        if (endDate > new Date()) {
+        // Strict comparison: subscription must be active (end date > today)
+        const isSubscriptionActive = endDate > today;
+
+        if (isSubscriptionActive && ['basic', 'standard', 'ultra'].includes(subscriptionPlan)) {
+          // Active paid subscription
           currentPlan = subscriptionPlan;
         } else if (isTrialActive) {
+          // Subscription expired but still in trial period
           currentPlan = "trial";
         } else {
+          // Both subscription and trial expired
           currentPlan = "expired";
         }
       } else if (isTrialActive) {
+        // No subscription, but trial is active
         currentPlan = "trial";
       } else {
+        // No subscription and trial expired
         currentPlan = "expired";
       }
 
