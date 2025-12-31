@@ -17,6 +17,7 @@ import { DailyEntrySkeleton } from "@/components/skeletons/DailyEntrySkeleton";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useTutorial } from "@/components/OnboardingTutorial";
+import { useUserType } from "@/contexts/UserTypeContext";
 
 // Admin emails - admins have no restrictions
 const ADMIN_EMAILS = ["mohammednoorsirasgi@gmail.com"];
@@ -31,6 +32,10 @@ interface Vehicle {
   monthly_emi: number;
   driver_monthly_salary: number;
   expected_monthly_maintenance: number;
+  // Agent mode fields
+  partner_name?: string;
+  office_rate_per_km?: number;
+  agent_commission_per_km?: number;
 }
 
 const DailyEntry = () => {
@@ -39,6 +44,7 @@ const DailyEntry = () => {
   const navigate = useNavigate();
   const { formatCurrency } = useCurrency();
   const { limits, plan } = useSubscription();
+  const { isAgent } = useUserType();
   const tutorial = useTutorial();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -73,6 +79,9 @@ const DailyEntry = () => {
     trip_earnings: 0,
     total_expenses: 0,
     net_profit: 0,
+    // Agent mode specific
+    agent_commission: 0,
+    partner_earning: 0,
   });
 
   useEffect(() => {
@@ -104,38 +113,63 @@ const DailyEntry = () => {
     if (selectedVehicle && formData.kilometers) {
       const km = parseFloat(formData.kilometers);
       if (km > 0) {
-        // Calculate fuel filled based on mileage
+        // Calculate fuel filled based on mileage (for reference)
         const fuelFilled = km / selectedVehicle.mileage_kmpl;
 
-        // Calculate fuel cost
-        const fuelPrice = parseFloat(fuelPricePerLiter) || 0;
-        const fuelCost = fuelFilled * fuelPrice;
+        // Check if this is an Agent-managed vehicle
+        const isAgentVehicle = selectedVehicle.partner_name && selectedVehicle.agent_commission_per_km;
 
-        // Calculate trip earnings based on earning type
-        let tripEarnings = 0;
-        if (selectedVehicle.earning_type === "per_km") {
-          tripEarnings = km * selectedVehicle.default_earning_value;
-        } else if (selectedVehicle.earning_type === "per_trip") {
-          tripEarnings = selectedVehicle.default_earning_value;
-        } else if (selectedVehicle.earning_type === "custom") {
-          tripEarnings = selectedVehicle.default_earning_value;
+        if (isAgentVehicle) {
+          // AGENT MODE: Commission = Profit, no fuel/expenses
+          const officeRate = selectedVehicle.office_rate_per_km || selectedVehicle.default_earning_value;
+          const commission = selectedVehicle.agent_commission_per_km || 0;
+
+          const tripEarnings = km * officeRate; // Total from office
+          const agentCommission = km * commission; // Agent's profit
+          const partnerEarning = tripEarnings - agentCommission; // What partner gets
+
+          setAutoCalculated({
+            fuel_filled: fuelFilled, // For reference only
+            fuel_cost: 0, // Agent doesn't pay for fuel
+            trip_earnings: tripEarnings,
+            total_expenses: 0, // Agent has no expenses
+            net_profit: agentCommission, // Commission IS the profit
+            agent_commission: agentCommission,
+            partner_earning: partnerEarning,
+          });
+        } else {
+          // OWNER MODE: Normal calculation with expenses
+          const fuelPrice = parseFloat(fuelPricePerLiter) || 0;
+          const fuelCost = fuelFilled * fuelPrice;
+
+          // Calculate trip earnings based on earning type
+          let tripEarnings = 0;
+          if (selectedVehicle.earning_type === "per_km") {
+            tripEarnings = km * selectedVehicle.default_earning_value;
+          } else if (selectedVehicle.earning_type === "per_trip") {
+            tripEarnings = selectedVehicle.default_earning_value;
+          } else if (selectedVehicle.earning_type === "custom") {
+            tripEarnings = selectedVehicle.default_earning_value;
+          }
+
+          // Calculate per-day costs from monthly costs
+          const perDayEMI = (selectedVehicle.monthly_emi || 0) / 30;
+          const perDayDriverSalary = (selectedVehicle.driver_monthly_salary || 0) / 30;
+          const perDayMaintenance = (selectedVehicle.expected_monthly_maintenance || 0) / 30;
+
+          const totalExpenses = fuelCost + perDayEMI + perDayDriverSalary + perDayMaintenance;
+          const netProfit = tripEarnings - totalExpenses;
+
+          setAutoCalculated({
+            fuel_filled: fuelFilled,
+            fuel_cost: fuelCost,
+            trip_earnings: tripEarnings,
+            total_expenses: totalExpenses,
+            net_profit: netProfit,
+            agent_commission: 0,
+            partner_earning: 0,
+          });
         }
-
-        // Calculate per-day costs from monthly costs
-        const perDayEMI = (selectedVehicle.monthly_emi || 0) / 30;
-        const perDayDriverSalary = (selectedVehicle.driver_monthly_salary || 0) / 30;
-        const perDayMaintenance = (selectedVehicle.expected_monthly_maintenance || 0) / 30;
-
-        const totalExpenses = fuelCost + perDayEMI + perDayDriverSalary + perDayMaintenance;
-        const netProfit = tripEarnings - totalExpenses;
-
-        setAutoCalculated({
-          fuel_filled: fuelFilled,
-          fuel_cost: fuelCost,
-          trip_earnings: tripEarnings,
-          total_expenses: totalExpenses,
-          net_profit: netProfit,
-        });
       }
     } else {
       setAutoCalculated({
@@ -144,6 +178,8 @@ const DailyEntry = () => {
         trip_earnings: 0,
         total_expenses: 0,
         net_profit: 0,
+        agent_commission: 0,
+        partner_earning: 0,
       });
     }
   }, [formData.kilometers, selectedVehicle, fuelPricePerLiter]);
@@ -402,31 +438,63 @@ const DailyEntry = () => {
           </CardContent>
         </Card>
 
-        {/* Calculation Summary - Hidden for Basic Plan to reduce complexity */}
+        {/* Calculation Summary - Shows different content for Agent vs Owner vehicles */}
         {plan !== 'basic' && (
           <Card className={autoCalculated.net_profit >= 0 ? "border-success/20 bg-success/5" : "border-destructive/20 bg-destructive/5"}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
                 Summary
+                {selectedVehicle?.partner_name && (
+                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 ml-2">
+                    Agent Mode
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex justify-between items-center p-4 bg-background rounded-lg">
-                <span className="text-lg font-medium">Total Expenses:</span>
-                <span className="text-2xl font-bold text-destructive">
-                  {formatCurrency(autoCalculated.total_expenses)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-background rounded-lg">
-                <span className="text-lg font-medium">Net Profit/Loss:</span>
-                <span
-                  className={`text-2xl font-bold ${autoCalculated.net_profit >= 0 ? "text-success" : "text-destructive"
-                    }`}
-                >
-                  {formatCurrency(autoCalculated.net_profit)}
-                </span>
-              </div>
+              {/* Agent-managed vehicle: Show Commission & Partner Earning */}
+              {selectedVehicle?.partner_name ? (
+                <>
+                  <div className="flex justify-between items-center p-4 bg-background rounded-lg">
+                    <span className="text-lg font-medium">Total from Office:</span>
+                    <span className="text-2xl font-bold text-muted-foreground">
+                      {formatCurrency(autoCalculated.trip_earnings)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                    <span className="text-lg font-medium text-amber-700">Your Commission:</span>
+                    <span className="text-2xl font-bold text-amber-600">
+                      {formatCurrency(autoCalculated.agent_commission)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-background rounded-lg">
+                    <span className="text-lg font-medium">Pay to Partner ({selectedVehicle.partner_name}):</span>
+                    <span className="text-2xl font-bold text-destructive">
+                      {formatCurrency(autoCalculated.partner_earning)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                /* Owner-managed vehicle: Show Expenses & Profit */
+                <>
+                  <div className="flex justify-between items-center p-4 bg-background rounded-lg">
+                    <span className="text-lg font-medium">Total Expenses:</span>
+                    <span className="text-2xl font-bold text-destructive">
+                      {formatCurrency(autoCalculated.total_expenses)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-background rounded-lg">
+                    <span className="text-lg font-medium">Net Profit/Loss:</span>
+                    <span
+                      className={`text-2xl font-bold ${autoCalculated.net_profit >= 0 ? "text-success" : "text-destructive"
+                        }`}
+                    >
+                      {formatCurrency(autoCalculated.net_profit)}
+                    </span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
